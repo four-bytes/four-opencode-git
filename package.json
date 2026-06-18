@@ -1,0 +1,25 @@
+{
+  "name": "@four-bytes/four-opencode-git",
+  "version": "0.1.0",
+  "description": "Git analysis + GitHub/GitLab ops tools for opencode agents",
+  "type": "module",
+  "license": "Apache-2.0",
+  "main": "./dist/four-opencode-git.js",
+  "files": ["dist"],
+  "scripts": {
+    "build": "bun build ./src/four-opencode-git.ts --outdir dist --target bun --format esm --external @opencode-ai/plugin",
+    "test": "bun test",
+    "lint": "bun run lint:ts",
+    "lint:ts": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@opencode-ai/plugin": "1.15.13"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.4.0"
+  },
+  "opencode": {
+    "type": "plugin"
+  }
+}
