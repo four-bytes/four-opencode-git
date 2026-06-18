@@ -2,7 +2,7 @@ import { mkdirSync, appendFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 
-const PLUGIN_NAME = 'four-opencode-supertools';
+const PLUGIN_NAME = 'four-opencode-git';
 const DEBUG_ENABLED = process.env.CC_DEBUG === 'true';
 
 function getLogPath(): string {
