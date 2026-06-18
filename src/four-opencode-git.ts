@@ -4,13 +4,7 @@
 import type { Plugin } from '@opencode-ai/plugin';
 import { gitDiffTool } from './tools/git-diff';
 import { gitLogStructuredTool } from './tools/git-log-structured';
-import { curseScoreTool } from './tools/curse-score';
-import { busFactorTool } from './tools/bus-factor';
-import { implicitCouplingTool } from './tools/implicit-coupling';
-import { ownershipTool } from './tools/ownership';
-import { blastRadiusTool } from './tools/blast-radius';
-import { trendTool } from './tools/trend';
-import { prRiskTool } from './tools/pr-risk';
+import { gitAnalyze } from './tools/git-analyze';
 import { ghIssueListTool } from './tools/gh-issue-list';
 import { ghIssueCloseTool } from './tools/gh-issue-close';
 import { ghPrStatusTool } from './tools/gh-pr-status';
@@ -29,13 +23,7 @@ const FourOpencodeGit: Plugin = async (_ctx) => {
     tool: {
       git_diff: gitDiffTool,
       git_log_structured: gitLogStructuredTool,
-      curse_score: curseScoreTool,
-      bus_factor: busFactorTool,
-      implicit_coupling: implicitCouplingTool,
-      ownership: ownershipTool,
-      blast_radius: blastRadiusTool,
-      trend: trendTool,
-      pr_risk: prRiskTool,
+      git_analyze: gitAnalyze,
       gh_issue_list: ghIssueListTool,
       gh_issue_close: ghIssueCloseTool,
       gh_pr_status: ghPrStatusTool,
