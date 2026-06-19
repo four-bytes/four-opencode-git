@@ -55,3 +55,5 @@ Collapses 7 metrics into 1 tool schema. Pass `metric` arg to route:
 "plugin": ["file:///home/robby/four-opencode-git/dist/four-opencode-git.js"]
 ```
 Optional — omit for projects that don't use git.
+
+- **Console logging:** Plugins MUST use `_client?.app?.log()` for all logging in plugin mode — `console.log` / `console.warn` / `console.error` is ONLY permitted for the initial startup `"init"` message. Console output in plugin mode breaks the terminal UI.
