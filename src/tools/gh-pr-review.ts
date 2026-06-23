@@ -7,7 +7,7 @@ import { logDebugEvent } from '../lib/debug-logger';
 
 export const ghPrReviewTool = tool({
   description:
-    'Fetch review comments and reviews on a GitHub pull request. Returns structured feedback including review state (APPROVED/CHANGES_REQUESTED/COMMENTED) and comment bodies. Saves ~90% tokens vs. bash→read→parse.',
+    'Fetch review comments and reviews on a GitHub pull request. Returns full review bodies, review state (APPROVED/CHANGES_REQUESTED/COMMENTED), and comment bodies. Saves ~90% tokens vs. bash→read→parse.',
 
   args: {
     pr: tool.schema.number().describe('PR number to review'),
@@ -64,8 +64,7 @@ export const ghPrReviewTool = tool({
           const reviewer = review.author?.login ?? 'unknown';
           const state = review.state ?? 'COMMENTED';
           const ts = review.submittedAt ? ` (${review.submittedAt})` : '';
-          const bodyText = (review.body ?? '').trim() || '(no comment)';
-          const body = bodyText.length > 500 ? `${bodyText.substring(0, 500)}…` : bodyText;
+          const body = (review.body ?? '').trim() || '(no comment)';
           lines.push(`[${state}] ${reviewer}${ts}:`);
           lines.push(body);
           lines.push('');
@@ -78,10 +77,7 @@ export const ghPrReviewTool = tool({
         for (const comment of comments) {
           const author = comment.author?.login ?? 'unknown';
           const ts = comment.createdAt ? ` (${comment.createdAt})` : '';
-          const body =
-            (comment.body ?? '').length > 300
-              ? `${comment.body!.substring(0, 300)}…`
-              : (comment.body ?? '');
+          const body = comment.body ?? '';
           lines.push(`${author}${ts}:`);
           lines.push(`  ${body}`);
           lines.push('');
