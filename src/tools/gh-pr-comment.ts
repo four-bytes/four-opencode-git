@@ -26,7 +26,14 @@ export const ghPrCommentTool = tool({
   async execute(args, ctx) {
     const { pr, body, repo, inReplyTo } = args;
 
+    if (!body?.trim()) {
+      return 'Error: comment body must not be empty.';
+    }
+
     if (inReplyTo !== undefined) {
+      if (!Number.isInteger(inReplyTo) || inReplyTo <= 0) {
+        return `Error: inReplyTo must be a positive integer, got ${inReplyTo}`;
+      }
       // ── Reply to a specific inline review comment thread ──
       logDebugEvent('gh_pr_comment.inline.start', { pr, inReplyTo });
 
@@ -40,7 +47,14 @@ export const ghPrCommentTool = tool({
         );
 
         logDebugEvent('gh_pr_comment.inline.success', { pr, inReplyTo });
-        return `✅ Replied to review comment #${inReplyTo} on PR #${pr}. ${output.trim()}`;
+        let summary = '';
+        try {
+          const parsed = JSON.parse(output);
+          summary = parsed.html_url ?? '';
+        } catch {
+          summary = output.trim();
+        }
+        return `✅ Replied to review comment #${inReplyTo} on PR #${pr}.${summary ? ` ${summary}` : ''}`;
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         logDebugEvent('gh_pr_comment.inline.error', { error: msg, pr, inReplyTo });
