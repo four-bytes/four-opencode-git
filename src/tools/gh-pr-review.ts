@@ -64,8 +64,7 @@ export const ghPrReviewTool = tool({
           const reviewer = review.author?.login ?? 'unknown';
           const state = review.state ?? 'COMMENTED';
           const ts = review.submittedAt ? ` (${review.submittedAt})` : '';
-          const bodyText = (review.body ?? '').trim() || '(no comment)';
-          const body = bodyText;
+          const body = (review.body ?? '').trim() || '(no comment)';
           lines.push(`[${state}] ${reviewer}${ts}:`);
           lines.push(body);
           lines.push('');
