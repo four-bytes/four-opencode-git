@@ -13,7 +13,7 @@ interface IssueView {
   number: number;
   title: string;
   state: string;
-  closedByPullRequestsUrls: string[];
+  closedByPullRequestsReferences: Array<{ number: number; url: string }>;
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -63,7 +63,7 @@ export const ghIssueCloseTool = tool({
             '--repo',
             resolvedRepo,
             '--json',
-            'number,title,state,closedByPullRequestsUrls',
+            'number,title,state,closedByPullRequestsReferences',
           ],
           cwd
         );
@@ -78,16 +78,16 @@ export const ghIssueCloseTool = tool({
       }
 
       // ── Step 2: Zombie detection ──
-      const urls = issueView.closedByPullRequestsUrls || [];
-      const isZombie = urls.length > 0;
+      const refs = issueView.closedByPullRequestsReferences || [];
+      const isZombie = refs.length > 0;
 
       let outputLines: string[] = [];
 
       if (isZombie) {
         outputLines.push('⚠️  ZOMBIE ISSUE DETECTED');
         outputLines.push(`   Issue #${issueNum} "${issueView.title}" was closed by merged PR(s):`);
-        for (const url of urls) {
-          outputLines.push(`   • ${url}`);
+        for (const ref of refs) {
+          outputLines.push(`   • ${ref.url} (PR #${ref.number})`);
         }
         outputLines.push('   The associated PR is merged but the issue remained open.');
         outputLines.push('');
