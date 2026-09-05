@@ -16,6 +16,11 @@ function makeCommit(
 }
 
 describe('computeTrend', () => {
+  // Fixed reference clock so tests stay deterministic regardless of wall time
+  // (recent commits Jun 2026 must be <90d before NOW; older Jan-Mar 2026 commits
+  // must be <90d before NOW - 90d = 2026-03-17).
+  const NOW = new Date('2026-06-15T00:00:00Z');
+
   it('detects files with increasing curse score (positive trend)', () => {
     const recentCommits: Commit[] = [
       makeCommit('a'.repeat(40), 'Alice', '2026-06-10T00:00:00Z', [
@@ -39,7 +44,7 @@ describe('computeTrend', () => {
       ]),
     ];
 
-    const result = computeTrend(recentCommits, olderCommits, 90, 10);
+    const result = computeTrend(recentCommits, olderCommits, 90, 10, NOW);
 
     expect(result.insufficientHistory).toBe(false);
     expect(result.worsening.length).toBeGreaterThan(0);
@@ -69,7 +74,7 @@ describe('computeTrend', () => {
       ]),
     ];
 
-    const result = computeTrend(recentCommits, olderCommits, 90, 10);
+    const result = computeTrend(recentCommits, olderCommits, 90, 10, NOW);
 
     expect(result.improving.length).toBeGreaterThan(0);
     const calmFile = result.improving.find((r) => r.file === 'src/calming.ts');
@@ -101,7 +106,7 @@ describe('computeTrend', () => {
       );
     }
 
-    const result = computeTrend(recentCommits, olderCommits, 90, 5);
+    const result = computeTrend(recentCommits, olderCommits, 90, 5, NOW);
     expect(result.worsening.length).toBeLessThanOrEqual(5);
   });
 
@@ -112,7 +117,7 @@ describe('computeTrend', () => {
       ]),
     ];
 
-    const result = computeTrend(recentCommits, [], 90, 10);
+    const result = computeTrend(recentCommits, [], 90, 10, NOW);
     expect(result.insufficientHistory).toBe(true);
     expect(result.worsening).toHaveLength(0);
   });
@@ -130,7 +135,7 @@ describe('computeTrend', () => {
       ]),
     ];
 
-    const result = computeTrend(recentCommits, olderCommits, 90, 10);
+    const result = computeTrend(recentCommits, olderCommits, 90, 10, NOW);
     const newFile = result.worsening.find((r) => r.file === 'src/new.ts');
     expect(newFile).toBeDefined();
     expect(newFile!.note).toBe('new file, no older score');
@@ -150,7 +155,7 @@ describe('computeTrend', () => {
       ]),
     ];
 
-    const result = computeTrend(recentCommits, olderCommits, 90, 10);
+    const result = computeTrend(recentCommits, olderCommits, 90, 10, NOW);
     const deletedFile = result.improving.find((r) => r.file === 'src/deleted.ts');
     expect(deletedFile).toBeDefined();
     expect(deletedFile!.note).toBe('deleted');
@@ -159,7 +164,7 @@ describe('computeTrend', () => {
   });
 
   it('returns empty when no commits at all', () => {
-    const result = computeTrend([], [], 90, 10);
+    const result = computeTrend([], [], 90, 10, NOW);
     expect(result.worsening).toHaveLength(0);
     expect(result.improving).toHaveLength(0);
     expect(result.insufficientHistory).toBe(false);
