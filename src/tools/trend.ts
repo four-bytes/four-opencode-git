@@ -64,7 +64,8 @@ export function computeTrend(
   recentCommits: import('../lib/git-utils').Commit[],
   olderCommits: import('../lib/git-utils').Commit[],
   windowDays: number,
-  top: number
+  top: number,
+  now: Date = new Date()
 ): { worsening: TrendResult[]; improving: TrendResult[]; insufficientHistory: boolean } {
   // Check for insufficient history
   if (olderCommits.length === 0) {
@@ -77,8 +78,8 @@ export function computeTrend(
 
   // Compute curse scores for each window — get ALL files, not just top N
   // Use the end of each window as the reference date for curse score calculation
-  const recentRefDate = new Date(); // now
-  const olderRefDate = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000); // end of older window
+  const recentRefDate = now;
+  const olderRefDate = new Date(now.getTime() - windowDays * 24 * 60 * 60 * 1000); // end of older window
 
   const recentScores = computeCurseScoresAll(recentCommits, recentRefDate);
   const olderScores = computeCurseScoresAll(olderCommits, olderRefDate);
