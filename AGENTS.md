@@ -3,11 +3,11 @@
 ## Pointer
 - Meta-repo: `~/four-opencode-plugins/`
 - Repo: `four-bytes/four-opencode-git`
-- Package: `@four-bytes/four-opencode-git` v0.1.0
+- Package: `@four-bytes/four-opencode-git` v0.1.1
 - Build: `bun run build` → `dist/four-opencode-git.js`
 - Test: `bun test`
 
-## Tool Stack (15 tools)
+## Tool Stack (19 tools)
 ### git_analyze — Unified Analysis Dispatcher
 Collapses 7 metrics into 1 tool schema. Pass `metric` arg to route:
 - `curse_score` — rank files by risk (changes × recency × churn)
@@ -38,16 +38,23 @@ Collapses 7 metrics into 1 tool schema. Pass `metric` arg to route:
 - `gitlab_mr_comment` — add comment to MR
 - `gitlab_mr_status` — check MR state/mergeability/pipelines
 
+### Forgejo (4 tools)
+- `forgejo_issue_list` — list issues (state/label/assignee), one line per issue
+- `forgejo_issue_view` — issue detail, body truncated to ~20 lines, comment count
+- `forgejo_issue_close` — close issue with optional API-posted comment (no shell)
+- `forgejo_pr_status` — PR state; resolves `closed` + not-merged into `merged_via git-squash` via git
+
 ## Architecture
-- Entry: `src/four-opencode-git.ts` — registers all 15 tools
+- Entry: `src/four-opencode-git.ts` — registers all 19 tools
 - Tools: `src/tools/` — one file per tool; analysis tools export execute fns used by git_analyze dispatcher
-- Lib: `src/lib/` — git-utils.ts, gh-utils.ts, gitlab-utils.ts, debug-logger.ts, diff-parse.ts
-- Tests: `tests/` — 146 tests, bun-native
+- Lib: `src/lib/` — git-utils.ts, gh-utils.ts, gitlab-utils.ts, forgejo-utils.ts, debug-logger.ts, diff-parse.ts
+- Tests: `tests/` — bun-native
 
 ## Dependencies
 - `@opencode-ai/plugin` 1.15.13 (exact pin)
 - Bun runtime, ESM modules
 - `gh` CLI for GitHub tools, `glab` for GitLab tools
+- Forgejo REST API (`FORGEJO_TOKEN`, `FORGEJO_HOST`) — no `fj` CLI dependency
 
 ## Loading
 ```jsonc
