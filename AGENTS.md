@@ -3,11 +3,11 @@
 ## Pointer
 - Meta-repo: `~/four-opencode-plugins/`
 - Repo: `four-bytes/four-opencode-git`
-- Package: `@four-bytes/four-opencode-git` v0.1.1
+- Package: `@four-bytes/four-opencode-git` v0.1.2
 - Build: `bun run build` → `dist/four-opencode-git.js`
 - Test: `bun test`
 
-## Tool Stack (19 tools)
+## Tool Stack (20 tools)
 ### git_analyze — Unified Analysis Dispatcher
 Collapses 7 metrics into 1 tool schema. Pass `metric` arg to route:
 - `curse_score` — rank files by risk (changes × recency × churn)
@@ -18,8 +18,9 @@ Collapses 7 metrics into 1 tool schema. Pass `metric` arg to route:
 - `trend` — curse score trajectory (growing risk detection)
 - `pr_risk` — uncommitted change risk (staged + unstaged)
 
-### Git Core (2 tools)
+### Git Core (3 tools)
 - `git_diff` — structured diff output (staged, file, between refs). Saves ~90% tokens
+- `git_status` — repo orientation: branch, upstream, ahead/behind, remote, tree counts. Parses `status --porcelain=v2`; `verbose` appends up to 10 changed paths
 - `git_log_structured` — parsed log with author/date/file filters. Saves ~50% tokens
 
 ### GitHub (9 tools)
@@ -45,7 +46,7 @@ Collapses 7 metrics into 1 tool schema. Pass `metric` arg to route:
 - `forgejo_pr_status` — PR state; resolves `closed` + not-merged into `merged_via git-squash` via git
 
 ## Architecture
-- Entry: `src/four-opencode-git.ts` — registers all 19 tools
+- Entry: `src/four-opencode-git.ts` — registers all 20 tools
 - Tools: `src/tools/` — one file per tool; analysis tools export execute fns used by git_analyze dispatcher
 - Lib: `src/lib/` — git-utils.ts, gh-utils.ts, gitlab-utils.ts, forgejo-utils.ts, debug-logger.ts, diff-parse.ts
 - Tests: `tests/` — bun-native
