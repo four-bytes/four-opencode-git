@@ -3,11 +3,11 @@
 ## Pointer
 - Meta-repo: `~/four-opencode-plugins/`
 - Repo: `four-bytes/four-opencode-git`
-- Package: `@four-bytes/four-opencode-git` v0.1.2
+- Package: `@four-bytes/four-opencode-git` v0.1.3
 - Build: `bun run build` → `dist/four-opencode-git.js`
 - Test: `bun test`
 
-## Tool Stack (20 tools)
+## Tool Stack (22 tools)
 ### git_analyze — Unified Analysis Dispatcher
 Collapses 7 metrics into 1 tool schema. Pass `metric` arg to route:
 - `curse_score` — rank files by risk (changes × recency × churn)
@@ -17,6 +17,12 @@ Collapses 7 metrics into 1 tool schema. Pass `metric` arg to route:
 - `blast_radius` — impact analysis: what breaks when touching a file
 - `trend` — curse score trajectory (growing risk detection)
 - `pr_risk` — uncommitted change risk (staged + unstaged)
+
+### issue_list — Forge-Agnostic Issue Dispatcher
+One tool, one schema, routed internally. Detects GitHub/GitLab/Forgejo from
+`git remote get-url origin` and normalizes every backend to one identical line per
+issue (`#N [label] title`). Optional `backend` arg overrides detection; unknown host
+returns `No issue backend for <host>.` as a plain string.
 
 ### Git Core (3 tools)
 - `git_diff` — structured diff output (staged, file, between refs). Saves ~90% tokens
@@ -34,10 +40,11 @@ Collapses 7 metrics into 1 tool schema. Pass `metric` arg to route:
 - `gh_release_info` — structured release metadata
 - `gh_bot_review` — parse AI bot reviews (CodeRabbit, cubic-dev)
 
-### GitLab (3 tools)
+### GitLab (4 tools)
 - `gitlab_mr_create` — create merge request
 - `gitlab_mr_comment` — add comment to MR
 - `gitlab_mr_status` — check MR state/mergeability/pipelines
+- `gitlab_issue_list` — list issues (state/label/assignee/search), one line per issue
 
 ### Forgejo (4 tools)
 - `forgejo_issue_list` — list issues (state/label/assignee), one line per issue
@@ -46,7 +53,7 @@ Collapses 7 metrics into 1 tool schema. Pass `metric` arg to route:
 - `forgejo_pr_status` — PR state; resolves `closed` + not-merged into `merged_via git-squash` via git
 
 ## Architecture
-- Entry: `src/four-opencode-git.ts` — registers all 20 tools
+- Entry: `src/four-opencode-git.ts` — registers all 22 tools
 - Tools: `src/tools/` — one file per tool; analysis tools export execute fns used by git_analyze dispatcher
 - Lib: `src/lib/` — git-utils.ts, gh-utils.ts, gitlab-utils.ts, forgejo-utils.ts, debug-logger.ts, diff-parse.ts
 - Tests: `tests/` — bun-native
