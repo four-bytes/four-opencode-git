@@ -9,7 +9,7 @@ Git analysis + GitHub/GitLab ops tools for opencode agents.
 "plugin": ["file:///home/robby/four-opencode-git/dist/four-opencode-git.js"]
 ```
 
-## Tools (20)
+## Tools (22)
 
 ### Git core (3)
 
@@ -38,15 +38,35 @@ the `remote` line is omitted. Detached HEAD reports the 7-char short OID. Pass
 - `git_analyze` — routes `metric` to curse_score, bus_factor, implicit_coupling,
   ownership, blast_radius, trend, pr_risk
 
+### Issue list dispatcher (1)
+
+- `issue_list` — lists issues for the current repository regardless of forge. Detects
+  GitHub, GitLab or Forgejo from `git remote get-url origin` and routes internally
+  (`runGh` / `gitlabApi` / `forgejoApi`), normalizing every backend to one identical
+  line per issue:
+
+  ```
+  #1303 [spec-change] Add "updated today/yesterday" filters to invoice list
+  #1298 [bug] Vendor stock import: headers already sent
+  ```
+
+  Args: `state` (default `open`), `label`, `assignee`, `limit` (default 20), `search`,
+  and an optional `backend` (`github` / `gitlab` / `forgejo`) that overrides detection —
+  use it when a repo's issues live somewhere other than its forge. An unrecognised host
+  returns `No issue backend for <host>.` as a plain string, not an error.
+
 ### GitHub (9)
 
 - `gh_pr_create`, `gh_pr_comment`, `gh_pr_review`, `gh_pr_status`
 - `gh_issue_list`, `gh_issue_close` (zombie detection)
 - `gh_branch_cleanup` (dry_run first), `gh_release_info`, `gh_bot_review`
 
-### GitLab (3)
+### GitLab (4)
 
 - `gitlab_mr_create`, `gitlab_mr_comment`, `gitlab_mr_status`
+- `gitlab_issue_list` — list issues (state/label/assignee/search filters), one line per
+  issue; `repo`/`project` optionally override the origin remote. GitLab's `opened` API
+  state is mapped from the user-facing `open`
 
 ### Forgejo (4)
 
