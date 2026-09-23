@@ -9,12 +9,29 @@ Git analysis + GitHub/GitLab ops tools for opencode agents.
 "plugin": ["file:///home/robby/four-opencode-git/dist/four-opencode-git.js"]
 ```
 
-## Tools (19)
+## Tools (20)
 
-### Git core (2)
+### Git core (3)
 
 - `git_diff` — structured diff output (staged, file, between refs)
+- `git_status` — repo orientation in one call: branch, upstream, ahead/behind, remote
+  and working-tree counts. Parses `git status --porcelain=v2 --branch`; optional
+  `verbose` appends up to 10 changed paths
 - `git_log_structured` — parsed log with author/date/file filters
+
+#### `git_status` output
+
+```
+REPO — dev-playground
+  branch    feat/1303-updated-at-filters → origin/feat/1303-updated-at-filters (ahead 2, behind 0)
+  remote    origin  https://git.4serv.de/scr/dev-playground.git
+  tree      3 staged, 1 unstaged, 2 untracked
+```
+
+Clean tree → `tree      clean`; no upstream → `branch    main (no upstream)`; no remote →
+the `remote` line is omitted. Detached HEAD reports the 7-char short OID. Pass
+`verbose: true` to append up to 10 changed paths. A missing repo returns
+`Not a git repository.` rather than throwing.
 
 ### Analysis dispatcher (1)
 
