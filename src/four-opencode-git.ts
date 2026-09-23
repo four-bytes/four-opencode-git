@@ -18,6 +18,8 @@ import { ghBotReviewTool } from './tools/gh-bot-review';
 import { gitlabMrCreateTool } from './tools/gitlab-mr-create';
 import { gitlabMrCommentTool } from './tools/gitlab-mr-comment';
 import { gitlabMrStatusTool } from './tools/gitlab-mr-status';
+import { gitlabIssueListTool } from './tools/gitlab-issue-list';
+import { issueListTool } from './tools/issue-list';
 import { forgejoIssueListTool } from './tools/forgejo-issue-list';
 import { forgejoIssueViewTool } from './tools/forgejo-issue-view';
 import { forgejoIssueCloseTool } from './tools/forgejo-issue-close';
@@ -42,6 +44,8 @@ const FourOpencodeGit: Plugin = async (_ctx) => {
       gitlab_mr_create: gitlabMrCreateTool,
       gitlab_mr_comment: gitlabMrCommentTool,
       gitlab_mr_status: gitlabMrStatusTool,
+      gitlab_issue_list: gitlabIssueListTool,
+      issue_list: issueListTool,
       forgejo_issue_list: forgejoIssueListTool,
       forgejo_issue_view: forgejoIssueViewTool,
       forgejo_issue_close: forgejoIssueCloseTool,
