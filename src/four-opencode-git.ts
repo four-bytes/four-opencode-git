@@ -17,6 +17,10 @@ import { ghBotReviewTool } from './tools/gh-bot-review';
 import { gitlabMrCreateTool } from './tools/gitlab-mr-create';
 import { gitlabMrCommentTool } from './tools/gitlab-mr-comment';
 import { gitlabMrStatusTool } from './tools/gitlab-mr-status';
+import { forgejoIssueListTool } from './tools/forgejo-issue-list';
+import { forgejoIssueViewTool } from './tools/forgejo-issue-view';
+import { forgejoIssueCloseTool } from './tools/forgejo-issue-close';
+import { forgejoPrStatusTool } from './tools/forgejo-pr-status';
 
 const FourOpencodeGit: Plugin = async (_ctx) => {
   return {
@@ -36,6 +40,10 @@ const FourOpencodeGit: Plugin = async (_ctx) => {
       gitlab_mr_create: gitlabMrCreateTool,
       gitlab_mr_comment: gitlabMrCommentTool,
       gitlab_mr_status: gitlabMrStatusTool,
+      forgejo_issue_list: forgejoIssueListTool,
+      forgejo_issue_view: forgejoIssueViewTool,
+      forgejo_issue_close: forgejoIssueCloseTool,
+      forgejo_pr_status: forgejoPrStatusTool,
     },
   };
 };
