@@ -1,6 +1,6 @@
 {
   "name": "@four-bytes/four-opencode-git",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Git analysis + GitHub/GitLab ops tools for opencode agents",
   "type": "module",
   "license": "Apache-2.0",

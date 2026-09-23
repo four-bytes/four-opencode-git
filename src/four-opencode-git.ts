@@ -3,6 +3,7 @@
 
 import type { Plugin } from '@opencode-ai/plugin';
 import { gitDiffTool } from './tools/git-diff';
+import { gitStatusTool } from './tools/git-status';
 import { gitLogStructuredTool } from './tools/git-log-structured';
 import { gitAnalyze } from './tools/git-analyze';
 import { ghIssueListTool } from './tools/gh-issue-list';
@@ -26,6 +27,7 @@ const FourOpencodeGit: Plugin = async (_ctx) => {
   return {
     tool: {
       git_diff: gitDiffTool,
+      git_status: gitStatusTool,
       git_log_structured: gitLogStructuredTool,
       git_analyze: gitAnalyze,
       gh_issue_list: ghIssueListTool,
