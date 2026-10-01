@@ -50,10 +50,12 @@ export function formatForgejoPrComments(
     });
   }
 
-  const open = new Set(summary.openHumanComments.map((c) => c.id));
+  const open = new Set(summary.openHumanThreads.map((t) => t.key));
+  const resolved = new Set(summary.conversations.filter((t) => t.resolved).map((t) => t.key));
   for (const c of summary.comments) {
     const where = c.line ? `${c.path}:${c.line}` : c.path;
-    const mark = open.has(c.id) ? 'OPEN ' : c.resolved ? 'resolved ' : '';
+    const key = `${c.path}:${c.line ?? ''}`;
+    const mark = open.has(key) ? 'OPEN ' : resolved.has(key) ? 'resolved ' : '';
     entries.push({
       at: c.createdAt,
       line: `  ${day(c.createdAt)} ${c.author}${c.bot ? ' (bot)' : ''} ${mark}${where}: ${summarizeBody(c.body)}`,
@@ -74,7 +76,7 @@ export function formatForgejoPrComments(
 
 export const forgejoPrCommentsTool = tool({
   description:
-    'Read a Forgejo PR\'s conversation, review verdicts and inline review comments — one line each, time-ordered — and report open human threads (unresolved inline comments or requested changes by someone other than the author). An open human thread blocks forgejo_pr_merge; bot findings never do.',
+    'Read a Forgejo PR\'s conversation, review verdicts and inline review comments — one line each, time-ordered — and report open human threads (unresolved inline conversations or requested changes by someone other than the author). An open human thread blocks forgejo_pr_merge; bot findings never do. A reply does not resolve a thread — it is resolved in the Forgejo UI.',
 
   args: {
     pr: tool.schema.number().describe('PR number'),
@@ -109,7 +111,7 @@ export const forgejoPrCommentsTool = tool({
       const summary = await fetchReviewSummary(repo, n, view.data?.user?.login ?? '', config);
       if (!summary) return `Error reading reviews on !${n}.`;
 
-      logDebugEvent('forgejo_pr_comments.done', { pr: n, open: summary.openHumanComments.length });
+      logDebugEvent('forgejo_pr_comments.done', { pr: n, open: summary.openHumanThreads.length });
       return formatForgejoPrComments(n, conversation.data, summary, limit);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

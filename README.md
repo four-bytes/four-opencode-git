@@ -89,8 +89,9 @@ read back reliably.
 - `forgejo_pr_comments` — conversation, review verdicts and inline comments, one line each;
   marks open human threads
 - `forgejo_pr_merge` — merge through the API (default: squash + delete the remote branch).
-  Refuses a closed / conflicted PR, an open human review comment, or requested changes — bot
-  findings never block. The PR then shows **merged** and `Closes #N` closes the issue
+  Refuses a closed / conflicted PR, an unresolved human review thread, or requested changes —
+  bot findings never block. A thread counts as open until it is **resolved** in the Forgejo UI;
+  a reply alone does not clear it. The PR then shows **merged** and `Closes #N` closes the issue
 - `forgejo_pr_close` — close a PR without merging (abandoned), with an optional comment
 
 #### Workflow on a Forgejo repo
@@ -99,8 +100,10 @@ read back reliably.
 forgejo_issue_create  title="[FEAT] short desc"  labels="enhancement"   → #12
 git checkout -b feat/12-short-desc  …  git commit  …  git push -u origin HEAD
 forgejo_pr_create     title="feat: short desc (#12)"  body="Closes #12" → !13
-forgejo_pr_comments   pr=13        # answer human threads with forgejo_issue_comment issue=13
-forgejo_pr_status     pr=13        # threads line must say "no open human threads"
+forgejo_pr_comments   pr=13        # read reviews; open human threads are marked OPEN
+                                   # reply in the thread (Forgejo UI) until the reviewer resolves it;
+                                   # forgejo_issue_comment issue=13 posts a general PR comment
+forgejo_pr_status     pr=13        # "merge mergeable" + "threads no open human threads"
 forgejo_pr_merge      pr=13        # squash, deletes the remote branch, closes #12
 git checkout main && git pull --ff-only && git branch -D feat/12-short-desc && git fetch --prune
 ```
@@ -122,11 +125,13 @@ On your Forgejo instance: avatar → **Settings** → **Applications** → **Gen
 
 | Scope | Needed for |
 |---|---|
-| `issue` — Read | `forgejo_issue_list`, `forgejo_issue_view`, `issue_list` |
-| `issue` — Read and write | `forgejo_issue_create`, `forgejo_issue_comment`, `forgejo_issue_close` |
+| `issue` — Read | `forgejo_issue_list`, `forgejo_issue_view`, `forgejo_issue_comments`, `forgejo_pr_comments`, `issue_list` |
+| `issue` — Read and write | `forgejo_issue_create`, `forgejo_issue_comment`, `forgejo_issue_close`, `forgejo_pr_close` with a comment |
 | `repository` — Read | `forgejo_pr_status`, `forgejo_pr_comments` |
 | `repository` — Read and write | `forgejo_pr_create`, `forgejo_pr_merge`, `forgejo_pr_close` |
 
+PR conversation comments go through Forgejo's issue endpoints, so the PR tools need the
+`issue` scope too. Simplest setup: **`issue` and `repository` both Read and write.**
 Copy the token right away — Forgejo shows it only once.
 
 #### 2. Store it in the secrets file

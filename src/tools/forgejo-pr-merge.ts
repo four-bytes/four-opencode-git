@@ -6,7 +6,7 @@ import { forgejoApi, getForgejoConfig, getForgejoRepo } from '../lib/forgejo-uti
 import { blocksMerge, fetchReviewSummary, formatReviewLine } from '../lib/forgejo-reviews';
 import { logDebugEvent } from '../lib/debug-logger';
 
-const METHODS = ['squash', 'merge', 'rebase', 'fast-forward-only'] as const;
+const METHODS = ['squash', 'merge', 'rebase', 'rebase-merge', 'fast-forward-only'] as const;
 type Method = (typeof METHODS)[number];
 
 /** Pre-merge refusal, or null when the PR may be merged. Pure — exported for testing. */
@@ -14,6 +14,7 @@ export function preMergeRefusal(pr: any): string | null {
   const n = pr?.number;
   if (pr?.merged === true) return `PR !${n} is already merged. Nothing to do.`;
   if (pr?.state !== 'open') return `✗ PR !${n} is ${pr?.state ?? 'not open'} — not merged.`;
+  if (!pr?.head?.sha) return `✗ PR !${n} has no head commit in the API response — not merged.`;
   if (pr?.mergeable === false) {
     return `✗ PR !${n} is not mergeable (conflicts or failing branch protection) — rebase on ${pr?.base?.ref ?? 'base'} and push first.`;
   }
@@ -24,7 +25,7 @@ export function preMergeRefusal(pr: any): string | null {
 export function formatMergeError(n: number, method: Method, status: number, error?: string): string {
   const detail = error ? `: ${error}` : '';
   if (status === 405) {
-    return `✗ Forgejo refused the merge of !${n} (405${detail}). Check that the repo allows "${method}" merges (Settings → Repository → Pull requests) and that required approvals / status checks are met.`;
+    return `✗ Forgejo refused the merge of !${n} (405${detail}). Check that the repo allows "${method}" merges (Settings → Repository → Pull requests) that required approvals / status checks are met, and that the PR is not marked work-in-progress.`;
   }
   if (status === 409) {
     return `✗ Merge of !${n} conflicted (409${detail}) — the head moved or the branch has conflicts. Re-check with forgejo_pr_status.`;

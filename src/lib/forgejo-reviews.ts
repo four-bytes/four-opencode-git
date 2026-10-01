@@ -7,9 +7,17 @@ import { forgejoApi, forgejoApiAll, type ForgejoConfig } from './forgejo-utils';
  * Review state of a Forgejo PR, shaped for the merge rule "an open human thread
  * blocks merge regardless of score". Bot findings are advisory and never block.
  *
- * A human thread is open when a review comment by someone other than the PR
- * author (and not a bot) has no `resolver`, or a non-dismissed, non-stale review
- * still says REQUEST_CHANGES.
+ * Inline comments are grouped into conversations by file + line. Forgejo sets
+ * `resolver` on the conversation's root comment only, so a conversation counts
+ * as resolved when ANY of its comments carries one. A conversation is an open
+ * human thread when it is unresolved and contains a comment by someone other
+ * than the PR author that is not a bot. Comments of dismissed reviews are
+ * ignored. A reply alone never resolves a thread — the reviewer (or anyone with
+ * write access) resolves it in the Forgejo UI, which is what the merge rule
+ * "reply until they resolve" asks for.
+ *
+ * Changes requested: the latest non-dismissed, non-stale APPROVED /
+ * REQUEST_CHANGES verdict per human reviewer decides.
  */
 
 export interface ReviewComment {
@@ -30,15 +38,25 @@ export interface Review {
   state: string;
   body: string;
   submittedAt: string;
+  dismissed: boolean;
   active: boolean;
   bot: boolean;
+}
+
+export interface Conversation {
+  key: string;
+  path: string;
+  line: number | null;
+  comments: ReviewComment[];
+  resolved: boolean;
 }
 
 export interface ReviewSummary {
   reviews: Review[];
   comments: ReviewComment[];
-  /** Unresolved review comments by humans other than the PR author. */
-  openHumanComments: ReviewComment[];
+  conversations: Conversation[];
+  /** Unresolved conversations with a comment by a human other than the PR author. */
+  openHumanThreads: Conversation[];
   /** Humans whose latest active review is REQUEST_CHANGES. */
   changesRequestedBy: string[];
 }
@@ -62,6 +80,7 @@ export function summarizeReviews(
       state: String(r?.state ?? ''),
       body: typeof r?.body === 'string' ? r.body : '',
       submittedAt: typeof r?.submitted_at === 'string' ? r.submitted_at : '',
+      dismissed: r?.dismissed === true,
       active: r?.dismissed !== true && r?.stale !== true,
       bot: isBotLogin(author),
     };
@@ -69,6 +88,7 @@ export function summarizeReviews(
 
   const comments: ReviewComment[] = [];
   for (const review of reviews) {
+    if (review.dismissed) continue;
     const raw = rawCommentsByReview[review.id];
     for (const c of Array.isArray(raw) ? raw : []) {
       const author = (c as any)?.user?.login ?? review.author;
@@ -86,8 +106,20 @@ export function summarizeReviews(
     }
   }
 
-  const openHumanComments = comments.filter(
-    (c) => !c.resolved && !c.bot && c.author !== prAuthor
+  const byKey = new Map<string, Conversation>();
+  for (const c of comments) {
+    const key = `${c.path}:${c.line ?? ''}`;
+    let conv = byKey.get(key);
+    if (!conv) {
+      conv = { key, path: c.path, line: c.line, comments: [], resolved: false };
+      byKey.set(key, conv);
+    }
+    conv.comments.push(c);
+    if (c.resolved) conv.resolved = true;
+  }
+  const conversations = [...byKey.values()];
+  const openHumanThreads = conversations.filter(
+    (conv) => !conv.resolved && conv.comments.some((c) => !c.bot && c.author !== prAuthor)
   );
 
   // Latest active verdict per human reviewer decides.
@@ -102,19 +134,20 @@ export function summarizeReviews(
     .filter((r) => r.state === 'REQUEST_CHANGES')
     .map((r) => r.author);
 
-  return { reviews, comments, openHumanComments, changesRequestedBy };
+  return { reviews, comments, conversations, openHumanThreads, changesRequestedBy };
 }
 
 /** Whether the summary blocks a merge. */
 export function blocksMerge(summary: ReviewSummary): boolean {
-  return summary.openHumanComments.length > 0 || summary.changesRequestedBy.length > 0;
+  return summary.openHumanThreads.length > 0 || summary.changesRequestedBy.length > 0;
 }
 
 /** One line for status/merge output, e.g. `2 open human thread(s) · changes requested by bob`. */
 export function formatReviewLine(summary: ReviewSummary): string {
   const parts: string[] = [];
-  if (summary.openHumanComments.length > 0) {
-    parts.push(`${summary.openHumanComments.length} open human review comment(s)`);
+  if (summary.openHumanThreads.length > 0) {
+    const where = summary.openHumanThreads.map((t) => (t.line ? `${t.path}:${t.line}` : t.path)).join(', ');
+    parts.push(`${summary.openHumanThreads.length} open human thread(s) (${where}) — resolve in the Forgejo UI`);
   }
   if (summary.changesRequestedBy.length > 0) {
     parts.push(`changes requested by ${summary.changesRequestedBy.join(', ')}`);

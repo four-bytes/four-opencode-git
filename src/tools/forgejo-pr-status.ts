@@ -91,8 +91,12 @@ export function formatForgejoPrStatus(
     `  branch    ${pr.head.ref} → ${pr.base.ref}`,
     `  diff      +${pr.additions ?? 0} -${pr.deletions ?? 0} · ${pr.comments ?? 0} comments`,
   ];
-  if (pr.state === 'open' && pr.mergeable === false) {
-    lines.push('  merge     not mergeable (conflicts or branch protection)');
+  if (pr.state === 'open') {
+    lines.push(
+      pr.mergeable === false
+        ? '  merge     not mergeable (conflicts or branch protection)'
+        : '  merge     mergeable'
+    );
   }
   if (reviewLine !== undefined) lines.push(`  threads   ${reviewLine}`);
   return lines.join('\n');

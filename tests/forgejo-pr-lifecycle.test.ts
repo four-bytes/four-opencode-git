@@ -68,7 +68,33 @@ describe('summarizeReviews', () => {
       'author'
     );
     expect(blocksMerge(s)).toBe(true);
-    expect(formatReviewLine(s)).toBe('1 open human review comment(s)');
+    expect(formatReviewLine(s)).toBe('1 open human thread(s) (x.ts:9) — resolve in the Forgejo UI');
+  });
+
+  it('treats a conversation as resolved when its root comment is', () => {
+    // Forgejo sets `resolver` on the root only; a later reply by the reviewer has none.
+    const s = summarizeReviews(
+      [
+        { id: 3, user: { login: 'bob' }, state: 'COMMENT', comments_count: 1 },
+        { id: 4, user: { login: 'bob' }, state: 'COMMENT', comments_count: 1 },
+      ],
+      {
+        3: [{ id: 30, user: { login: 'bob' }, path: 'x.ts', position: 9, body: 'why?', resolver: { login: 'bob' } }],
+        4: [{ id: 40, user: { login: 'bob' }, path: 'x.ts', position: 9, body: 'ok, thanks', resolver: null }],
+      },
+      'author'
+    );
+    expect(s.conversations).toHaveLength(1);
+    expect(blocksMerge(s)).toBe(false);
+  });
+
+  it('ignores comments of dismissed reviews', () => {
+    const s = summarizeReviews(
+      [{ id: 3, user: { login: 'bob' }, state: 'COMMENT', dismissed: true, comments_count: 1 }],
+      { 3: [{ id: 30, user: { login: 'bob' }, path: 'x.ts', position: 9, body: 'why?', resolver: null }] },
+      'author'
+    );
+    expect(blocksMerge(s)).toBe(false);
   });
 
   it('ignores resolved comments and the author\'s own', () => {
@@ -152,10 +178,39 @@ describe('forgejo_pr_merge', () => {
     const comments = { 3: [{ id: 30, user: { login: 'bob' }, path: 'x.ts', body: '?', resolver: null }] };
     await withForgejo(prRoutes(OPEN_PR, reviews, comments), async (calls) => {
       expect(await forgejoPrMergeTool.execute({ pr: 20 }, ctx(REPO))).toBe(
-        '✗ PR !20 not merged: 1 open human review comment(s).'
+        '✗ PR !20 not merged: 1 open human thread(s) (x.ts) — resolve in the Forgejo UI.'
       );
       noMergeCall(calls);
     });
+  });
+
+  it('refuses when a human requested changes — no merge call', async () => {
+    const reviews = [{ id: 4, user: { login: 'bob' }, state: 'REQUEST_CHANGES', comments_count: 0, submitted_at: '2026-06-02T00:00:00Z' }];
+    await withForgejo(prRoutes(OPEN_PR, reviews, {}), async (calls) => {
+      expect(await forgejoPrMergeTool.execute({ pr: 20 }, ctx(REPO))).toBe(
+        '✗ PR !20 not merged: changes requested by bob.'
+      );
+      noMergeCall(calls);
+    });
+  });
+
+  it('refuses without a head commit — no merge call', async () => {
+    await withForgejo(prRoutes({ ...OPEN_PR, head: { ref: 'x' } }, [], {}), async (calls) => {
+      expect(await forgejoPrMergeTool.execute({ pr: 20 }, ctx(REPO))).toContain('no head commit');
+      noMergeCall(calls);
+    });
+  });
+
+  it('maps a 409 from the merge endpoint', async () => {
+    const base = prRoutes(OPEN_PR, [], {});
+    await withForgejo(
+      (req) => (req.url.endsWith('/merge') ? { status: 409, json: { message: 'head out of date' } } : base(req)),
+      async () => {
+        expect(await forgejoPrMergeTool.execute({ pr: 20 }, ctx(REPO))).toContain(
+          'conflicted (409: head out of date)'
+        );
+      }
+    );
   });
 
   it('refuses a conflicted or closed PR — no merge call', async () => {
@@ -273,7 +328,7 @@ describe('forgejo_pr_comments', () => {
         expect(out).toBe(
           [
             'FORGEJO PR !20 — 3 comment(s)',
-            '  threads   1 open human review comment(s) · changes requested by bob',
+            '  threads   1 open human thread(s) (x.ts:9) — resolve in the Forgejo UI · changes requested by bob',
             '',
             '  2026-06-01 alice: looks good',
             '  2026-06-02 bob REQUEST_CHANGES: see inline',
@@ -289,6 +344,7 @@ describe('forgejo_pr_status — threads', () => {
   it('adds the threads line for open PRs', async () => {
     await withForgejo(prRoutes(OPEN_PR, REVIEWS_CLEAN, { 1: BOT_COMMENTS }), async () => {
       const out = await forgejoPrStatusTool.execute({ pr: 20 }, ctx(REPO));
+      expect(out).toContain('  merge     mergeable');
       expect(out).toContain('  threads   no open human threads · approved by carol');
     });
   });
