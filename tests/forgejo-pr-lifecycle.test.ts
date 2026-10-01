@@ -353,6 +353,7 @@ describe('forgejo_pr_status — threads', () => {
     const closed = formatForgejoPrStatus({ ...OPEN_PR, state: 'closed', merged: true, merge_commit_sha: 'ff' } as any, null);
     expect(closed.split('\n')).toHaveLength(4);
     expect(formatForgejoPrStatus({ ...OPEN_PR, mergeable: false } as any, null, 'x')).toContain('not mergeable');
+    expect(formatForgejoPrStatus({ ...OPEN_PR, mergeable: undefined } as any, null)).toContain('merge     unknown');
   });
 });
 

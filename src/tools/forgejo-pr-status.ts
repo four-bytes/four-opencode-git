@@ -95,7 +95,9 @@ export function formatForgejoPrStatus(
     lines.push(
       pr.mergeable === false
         ? '  merge     not mergeable (conflicts or branch protection)'
-        : '  merge     mergeable'
+        : pr.mergeable === true
+          ? '  merge     mergeable'
+          : '  merge     unknown (Forgejo has not computed it yet)'
     );
   }
   if (reviewLine !== undefined) lines.push(`  threads   ${reviewLine}`);

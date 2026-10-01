@@ -106,6 +106,8 @@ export function summarizeReviews(
     }
   }
 
+  // Forgejo shows all comments on one file line as one conversation, so two
+  // threads started on the same line are deliberately treated as one.
   const byKey = new Map<string, Conversation>();
   for (const c of comments) {
     const key = `${c.path}:${c.line ?? ''}`;
