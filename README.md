@@ -9,7 +9,7 @@ Git analysis + GitHub/GitLab ops tools for opencode agents.
 "plugin": ["file:///home/robby/four-opencode-git/dist/four-opencode-git.js"]
 ```
 
-## Tools (25)
+## Tools (29)
 
 ### Git core (3)
 
@@ -68,7 +68,7 @@ the `remote` line is omitted. Detached HEAD reports the 7-char short OID. Pass
   issue; `repo`/`project` optionally override the origin remote. GitLab's `opened` API
   state is mapped from the user-facing `open`
 
-### Forgejo (7)
+### Forgejo (11)
 
 Forgejo's `fj` CLI has no `--json` and no `--format`, and reports an out-of-forge
 squash-merge as `Closed`. These tools talk to the Forgejo REST API so state can be
@@ -82,8 +82,32 @@ read back reliably.
 - `forgejo_issue_comments` — read comments, one line each (date, author, first line), newest N
 - `forgejo_issue_close` — close an issue with an optional comment; reports whether a merged PR
   references it (`Closes #N` in the body or `#N` in the title)
-- `forgejo_pr_status` — PR state, resolving `open` / `merged` / `closed + merged_via git-squash`
-  / `closed` (abandoned) by checking git for the head commit
+- `forgejo_pr_create` — open a PR; `head` defaults to the current branch, `base` to the repo
+  default branch
+- `forgejo_pr_status` — PR state, mergeability and open human review threads; resolves
+  `closed + merged_via git-squash` for PRs merged outside the forge by checking git
+- `forgejo_pr_comments` — conversation, review verdicts and inline comments, one line each;
+  marks open human threads
+- `forgejo_pr_merge` — merge through the API (default: squash + delete the remote branch).
+  Refuses a closed / conflicted PR, an open human review comment, or requested changes — bot
+  findings never block. The PR then shows **merged** and `Closes #N` closes the issue
+- `forgejo_pr_close` — close a PR without merging (abandoned), with an optional comment
+
+#### Workflow on a Forgejo repo
+
+```text
+forgejo_issue_create  title="[FEAT] short desc"  labels="enhancement"   → #12
+git checkout -b feat/12-short-desc  …  git commit  …  git push -u origin HEAD
+forgejo_pr_create     title="feat: short desc (#12)"  body="Closes #12" → !13
+forgejo_pr_comments   pr=13        # answer human threads with forgejo_issue_comment issue=13
+forgejo_pr_status     pr=13        # threads line must say "no open human threads"
+forgejo_pr_merge      pr=13        # squash, deletes the remote branch, closes #12
+git checkout main && git pull --ff-only && git branch -D feat/12-short-desc && git fetch --prune
+```
+
+`forgejo_pr_merge` needs the repo to allow the chosen merge style (repo **Settings → Repository
+→ Pull requests**) and a token with `repository` read-and-write. If Forgejo answers 405, the
+tool says so in one line — check those two first.
 
 ## Configuration
 
@@ -99,9 +123,9 @@ On your Forgejo instance: avatar → **Settings** → **Applications** → **Gen
 | Scope | Needed for |
 |---|---|
 | `issue` — Read | `forgejo_issue_list`, `forgejo_issue_view`, `issue_list` |
-| `issue` — Read and write | `forgejo_issue_close` (and creating / commenting on issues) |
-| `repository` — Read | `forgejo_pr_status` |
-| `repository` — Read and write | creating, merging and closing pull requests |
+| `issue` — Read and write | `forgejo_issue_create`, `forgejo_issue_comment`, `forgejo_issue_close` |
+| `repository` — Read | `forgejo_pr_status`, `forgejo_pr_comments` |
+| `repository` — Read and write | `forgejo_pr_create`, `forgejo_pr_merge`, `forgejo_pr_close` |
 
 Copy the token right away — Forgejo shows it only once.
 
