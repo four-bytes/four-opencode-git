@@ -196,13 +196,13 @@ describe('parseGitStatus', () => {
 describe('parseRemote / repoNameFromRemoteUrl', () => {
   it('takes the first remote from git remote -v', () => {
     const lines = [
-      'origin\thttps://git.4serv.de/scr/dev-playground.git (fetch)',
-      'origin\thttps://git.4serv.de/scr/dev-playground.git (push)',
+      'origin\thttps://forgejo.example.com/acme/widgets.git (fetch)',
+      'origin\thttps://forgejo.example.com/acme/widgets.git (push)',
     ].join('\n');
 
     expect(parseRemote(lines)).toEqual({
       name: 'origin',
-      url: 'https://git.4serv.de/scr/dev-playground.git',
+      url: 'https://forgejo.example.com/acme/widgets.git',
     });
   });
 
@@ -211,8 +211,8 @@ describe('parseRemote / repoNameFromRemoteUrl', () => {
   });
 
   it('derives a repo name from https and ssh URLs', () => {
-    expect(repoNameFromRemoteUrl('https://git.4serv.de/scr/dev-playground.git')).toBe(
-      'dev-playground'
+    expect(repoNameFromRemoteUrl('https://forgejo.example.com/acme/widgets.git')).toBe(
+      'widgets'
     );
     expect(repoNameFromRemoteUrl('git@github.com:four-bytes/four-opencode-git.git')).toBe(
       'four-opencode-git'
@@ -254,12 +254,12 @@ describe('formatGitStatus', () => {
 
   it('renders remote and repo name from git remote -v', () => {
     const lines = [
-      'origin\thttps://git.4serv.de/scr/dev-playground.git (fetch)',
-      'origin\thttps://git.4serv.de/scr/dev-playground.git (push)',
+      'origin\thttps://forgejo.example.com/acme/widgets.git (fetch)',
+      'origin\thttps://forgejo.example.com/acme/widgets.git (push)',
     ].join('\n');
     const out = formatGitStatus(parsedWith(), lines, 'fallback');
-    expect(out).toContain('REPO — dev-playground');
-    expect(out).toContain('  remote    origin  https://git.4serv.de/scr/dev-playground.git');
+    expect(out).toContain('REPO — widgets');
+    expect(out).toContain('  remote    origin  https://forgejo.example.com/acme/widgets.git');
   });
 
   it('falls back to the given name when no remote is present', () => {

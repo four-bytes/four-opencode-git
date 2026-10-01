@@ -22,9 +22,9 @@ Git analysis + GitHub/GitLab ops tools for opencode agents.
 #### `git_status` output
 
 ```
-REPO — dev-playground
+REPO — widgets
   branch    feat/1303-updated-at-filters → origin/feat/1303-updated-at-filters (ahead 2, behind 0)
-  remote    origin  https://git.4serv.de/scr/dev-playground.git
+  remote    origin  https://forgejo.example.com/acme/widgets.git
   tree      3 staged, 1 unstaged, 2 untracked
 ```
 
@@ -84,10 +84,34 @@ read back reliably.
 
 ### Forgejo
 
-| Env var | Required | Purpose |
-|---|---|---|
-| `FORGEJO_TOKEN` | yes | Forgejo API token (`Authorization: token …`). Tools return a one-line "not configured" string when absent. |
-| `FORGEJO_HOST` | no | Base host, e.g. `https://git.4serv.de`. When unset, derived from the `origin` remote. If neither is available the config is treated as absent and the tools return `Forgejo host not configured (set FORGEJO_HOST)`. |
+Tokens are stored **per host** in `~/.config/four-git/secrets.env` (`$XDG_CONFIG_HOME`
+honoured). Each host is a pair sharing a free-form `<NAME>`:
+
+```bash
+mkdir -p ~/.config/four-git
+cat > ~/.config/four-git/secrets.env <<'ENV'
+FORGEJO_HOST_WORK=forgejo.example.com
+FORGEJO_TOKEN_WORK=...
+FORGEJO_HOST_CODEBERG=codeberg.org
+FORGEJO_TOKEN_CODEBERG=...
+ENV
+chmod 600 ~/.config/four-git/secrets.env
+```
+
+- The `origin` remote's hostname (https or ssh) selects the entry; the token is sent **only**
+  to the API base of that entry. A repo whose host has no entry gets a one-line
+  `No Forgejo token for <host> …` and no request is made.
+- `FORGEJO_HOST_<NAME>` accepts `host`, `https://host`, or `https://host:port/subpath`; the API
+  base is built from this value, never from the remote.
+- A hostname configured under two names is refused rather than guessed.
+- The unlabelled pair `FORGEJO_HOST` + `FORGEJO_TOKEN` still works as one entry. A
+  `FORGEJO_TOKEN` without `FORGEJO_HOST` is ignored (warning in the opencode log).
+- Requests never follow a redirect — a moved instance returns a one-line error instead of
+  carrying the token to the new location.
+- An exported variable overrides the file per key (so an exported `FORGEJO_HOST_<NAME>` pairs
+  with a file-sourced `FORGEJO_TOKEN_<NAME>`). Values read from the file never enter
+  `process.env`. A project `.env` is **not** read — a cloned repo must not be able to redirect
+  a token. A group/world-readable file is reported in the opencode log.
 
 The repository (`owner/repo`) is derived from `git remote get-url origin`; `ctx.directory`
 is used as the working directory, never `process.cwd()`.

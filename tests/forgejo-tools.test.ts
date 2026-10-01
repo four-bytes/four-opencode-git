@@ -18,25 +18,7 @@ import {
   resolveStateLine,
   type ForgejoPull,
 } from '../src/tools/forgejo-pr-status';
-import { deriveHostFromRemoteUrl, getForgejoConfig } from '../src/lib/forgejo-utils';
-
-/** Run `fn` with a temporary env overlay, restoring the previous values afterwards. */
-function withEnv(vars: Record<string, string | undefined>, fn: () => void): void {
-  const saved: Record<string, string | undefined> = {};
-  for (const key of Object.keys(vars)) saved[key] = process.env[key];
-  try {
-    for (const [key, value] of Object.entries(vars)) {
-      if (value === undefined) delete process.env[key];
-      else process.env[key] = value;
-    }
-    fn();
-  } finally {
-    for (const [key, value] of Object.entries(saved)) {
-      if (value === undefined) delete process.env[key];
-      else process.env[key] = value;
-    }
-  }
-}
+import { deriveHostFromRemoteUrl } from '../src/lib/forgejo-utils';
 
 // ────────────────────────────────────────────────────────────────
 // Unit tests — formatForgejoIssueList
@@ -44,7 +26,7 @@ function withEnv(vars: Record<string, string | undefined>, fn: () => void): void
 
 describe('formatForgejoIssueList', () => {
   it('formats one line per issue with labels', () => {
-    // Fixture: GET /repos/scr/dev-playground/issues
+    // Fixture: GET /repos/acme/widgets/issues
     const issues = [
       {
         number: 1303,
@@ -52,7 +34,7 @@ describe('formatForgejoIssueList', () => {
         state: 'open',
         labels: ['spec-change'],
         assignees: ['robby'],
-        html_url: 'https://git.4serv.de/scr/dev-playground/issues/1303',
+        html_url: 'https://forgejo.example.com/acme/widgets/issues/1303',
         updated_at: '2026-06-10T12:00:00Z',
       },
       {
@@ -61,14 +43,14 @@ describe('formatForgejoIssueList', () => {
         state: 'open',
         labels: ['bug', 'backend'],
         assignees: [],
-        html_url: 'https://git.4serv.de/scr/dev-playground/issues/1302',
+        html_url: 'https://forgejo.example.com/acme/widgets/issues/1302',
         updated_at: '2026-06-09T08:00:00Z',
       },
     ];
 
-    const output = formatForgejoIssueList(issues, 'scr/dev-playground', 'open');
+    const output = formatForgejoIssueList(issues, 'acme/widgets', 'open');
     expect(output).toContain(
-      'FORGEJO ISSUE LIST — scr/dev-playground — 2 open issues'
+      'FORGEJO ISSUE LIST — acme/widgets — 2 open issues'
     );
     expect(output).toContain('  #1303 [spec-change] Add updated today/yesterday invoice filters');
     expect(output).toContain('  #1302 [bug, backend] Fix router null pointer');
@@ -77,8 +59,8 @@ describe('formatForgejoIssueList', () => {
   });
 
   it('handles an empty issue list', () => {
-    const output = formatForgejoIssueList([], 'scr/dev-playground', 'open');
-    expect(output).toContain('FORGEJO ISSUE LIST — scr/dev-playground');
+    const output = formatForgejoIssueList([], 'acme/widgets', 'open');
+    expect(output).toContain('FORGEJO ISSUE LIST — acme/widgets');
     expect(output).toContain('no open issues found');
   });
 
@@ -92,7 +74,7 @@ describe('formatForgejoIssueList', () => {
         assignees: [],
       },
     ];
-    const output = formatForgejoIssueList(issues, 'scr/dev-playground', 'closed');
+    const output = formatForgejoIssueList(issues, 'acme/widgets', 'closed');
     expect(output).toMatch(/1 closed issue\b/);
   });
 
@@ -100,7 +82,7 @@ describe('formatForgejoIssueList', () => {
     const issues = [
       { number: 7, title: 'No labels here', state: 'open', labels: [], assignees: [] },
     ];
-    const output = formatForgejoIssueList(issues, 'scr/dev-playground', 'open');
+    const output = formatForgejoIssueList(issues, 'acme/widgets', 'open');
     expect(output).toContain('#7 No labels here');
     expect(output).not.toContain('[]');
   });
@@ -130,7 +112,7 @@ describe('truncateBody', () => {
 
 describe('formatForgejoIssueView', () => {
   it('formats full issue detail with a body', () => {
-    // Fixture: GET /repos/scr/dev-playground/issues/1303
+    // Fixture: GET /repos/acme/widgets/issues/1303
     const issue = {
       number: 1303,
       title: 'Add updated today/yesterday invoice filters',
@@ -139,16 +121,16 @@ describe('formatForgejoIssueView', () => {
       assignees: ['robby'],
       body: '## Goal\n\nAdd filters.',
       comments: 3,
-      html_url: 'https://git.4serv.de/scr/dev-playground/issues/1303',
+      html_url: 'https://forgejo.example.com/acme/widgets/issues/1303',
     };
 
-    const output = formatForgejoIssueView(issue, 'scr/dev-playground');
+    const output = formatForgejoIssueView(issue, 'acme/widgets');
     expect(output).toContain('FORGEJO ISSUE #1303 — Add updated today/yesterday invoice filters');
-    expect(output).toContain('repo       scr/dev-playground');
+    expect(output).toContain('repo       acme/widgets');
     expect(output).toContain('state      open');
     expect(output).toContain('labels     spec-change');
     expect(output).toContain('comments   3');
-    expect(output).toContain('url        https://git.4serv.de/scr/dev-playground/issues/1303');
+    expect(output).toContain('url        https://forgejo.example.com/acme/widgets/issues/1303');
     expect(output).toContain('Add filters.');
   });
 
@@ -162,7 +144,7 @@ describe('formatForgejoIssueView', () => {
       body: '',
       comments: 0,
     };
-    const output = formatForgejoIssueView(issue, 'scr/dev-playground');
+    const output = formatForgejoIssueView(issue, 'acme/widgets');
     expect(output).toContain('labels     —');
     expect(output).toContain('comments   0');
     // No trailing blank line + body block when body is empty.
@@ -179,7 +161,7 @@ describe('formatForgejoIssueView', () => {
       body: Array.from({ length: 30 }, (_, i) => `line ${i + 1}`).join('\n'),
       comments: 0,
     };
-    const output = formatForgejoIssueView(issue, 'scr/dev-playground');
+    const output = formatForgejoIssueView(issue, 'acme/widgets');
     expect(output).toContain('… (10 more lines)');
   });
 });
@@ -298,7 +280,7 @@ describe('formatForgejoPrStatus', () => {
     additions: 14,
     deletions: 0,
     comments: 0,
-    html_url: 'https://git.4serv.de/scr/dev-playground/pulls/1304',
+    html_url: 'https://forgejo.example.com/acme/widgets/pulls/1304',
   };
 
   it('formats an open PR', () => {
@@ -388,7 +370,7 @@ describe('normalizeForgejoIssueListItems', () => {
           { id: 2, name: 'backend', color: '#00ff00' },
         ],
         assignees: [{ id: 9, login: 'robby', full_name: 'Robby Beyer' }],
-        html_url: 'https://git.4serv.de/scr/dev-playground/issues/12',
+        html_url: 'https://forgejo.example.com/acme/widgets/issues/12',
         updated_at: '2026-06-10T12:00:00Z',
       },
     ];
@@ -424,7 +406,7 @@ describe('normalizeForgejoIssueView', () => {
       assignees: [{ id: 9, login: 'robby' }],
       body: 'hello world',
       comments: 7,
-      html_url: 'https://git.4serv.de/scr/dev-playground/issues/1303',
+      html_url: 'https://forgejo.example.com/acme/widgets/issues/1303',
     };
 
     const view = normalizeForgejoIssueView(raw);
@@ -456,43 +438,19 @@ describe('normalizeForgejoIssueView', () => {
 
 describe('deriveHostFromRemoteUrl', () => {
   it('extracts scheme+host from an https remote URL', () => {
-    expect(deriveHostFromRemoteUrl('https://git.4serv.de/scr/dev-playground.git')).toBe(
-      'https://git.4serv.de'
+    expect(deriveHostFromRemoteUrl('https://forgejo.example.com/acme/widgets.git')).toBe(
+      'https://forgejo.example.com'
     );
   });
 
   it('extracts host from an ssh remote URL', () => {
-    expect(deriveHostFromRemoteUrl('git@git.4serv.de:scr/dev-playground.git')).toBe(
-      'https://git.4serv.de'
+    expect(deriveHostFromRemoteUrl('git@forgejo.example.com:acme/widgets.git')).toBe(
+      'https://forgejo.example.com'
     );
   });
 
   it('returns null for an underivable URL', () => {
     expect(deriveHostFromRemoteUrl('not-a-url')).toBeNull();
     expect(deriveHostFromRemoteUrl('')).toBeNull();
-  });
-});
-
-describe('getForgejoConfig', () => {
-  it('uses FORGEJO_HOST when set', () => {
-    withEnv({ FORGEJO_TOKEN: 'tok', FORGEJO_HOST: 'https://forge.example' }, () => {
-      expect(getForgejoConfig()).toEqual({
-        ok: true,
-        config: { token: 'tok', host: 'https://forge.example' },
-      });
-    });
-  });
-
-  it('returns reason "host" when the token is present but no host is derivable', () => {
-    // No cwd → remote is not consulted, and FORGEJO_HOST is unset → host absent.
-    withEnv({ FORGEJO_TOKEN: 'tok', FORGEJO_HOST: undefined }, () => {
-      expect(getForgejoConfig()).toEqual({ ok: false, reason: 'host' });
-    });
-  });
-
-  it('returns reason "token" when FORGEJO_TOKEN is unset', () => {
-    withEnv({ FORGEJO_TOKEN: undefined, FORGEJO_HOST: 'https://forge.example' }, () => {
-      expect(getForgejoConfig()).toEqual({ ok: false, reason: 'token' });
-    });
   });
 });
