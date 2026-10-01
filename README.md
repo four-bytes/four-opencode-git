@@ -9,7 +9,7 @@ Git analysis + GitHub/GitLab ops tools for opencode agents.
 "plugin": ["file:///home/robby/four-opencode-git/dist/four-opencode-git.js"]
 ```
 
-## Tools (22)
+## Tools (25)
 
 ### Git core (3)
 
@@ -68,7 +68,7 @@ the `remote` line is omitted. Detached HEAD reports the 7-char short OID. Pass
   issue; `repo`/`project` optionally override the origin remote. GitLab's `opened` API
   state is mapped from the user-facing `open`
 
-### Forgejo (4)
+### Forgejo (7)
 
 Forgejo's `fj` CLI has no `--json` and no `--format`, and reports an out-of-forge
 squash-merge as `Closed`. These tools talk to the Forgejo REST API so state can be
@@ -76,7 +76,12 @@ read back reliably.
 
 - `forgejo_issue_list` — list issues (state/label/assignee filters), one line per issue
 - `forgejo_issue_view` — issue detail: state, labels, body (~20 lines), comment count
-- `forgejo_issue_close` — close an issue with an optional comment (API body argument, no shell)
+- `forgejo_issue_create` — create an issue **with labels in one call**; label names are resolved
+  to ids first (repo + org labels) and an unknown label aborts before anything is created
+- `forgejo_issue_comment` — comment on an issue or PR; text is a tool argument, no shell
+- `forgejo_issue_comments` — read comments, one line each (date, author, first line), newest N
+- `forgejo_issue_close` — close an issue with an optional comment; reports whether a merged PR
+  references it (`Closes #N` in the body or `#N` in the title)
 - `forgejo_pr_status` — PR state, resolving `open` / `merged` / `closed + merged_via git-squash`
   / `closed` (abandoned) by checking git for the head commit
 
