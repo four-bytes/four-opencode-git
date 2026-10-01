@@ -24,8 +24,10 @@ import { forgejoIssueListTool } from './tools/forgejo-issue-list';
 import { forgejoIssueViewTool } from './tools/forgejo-issue-view';
 import { forgejoIssueCloseTool } from './tools/forgejo-issue-close';
 import { forgejoPrStatusTool } from './tools/forgejo-pr-status';
+import { setPluginClient } from './lib/plugin-log';
 
-const FourOpencodeGit: Plugin = async (_ctx) => {
+const FourOpencodeGit: Plugin = async (ctx) => {
+  setPluginClient(ctx?.client);
   return {
     tool: {
       git_diff: gitDiffTool,

@@ -72,15 +72,23 @@ describe('detectBackend', () => {
     );
   });
 
-  it('detects Forgejo from FORGEJO_HOST or FORGEJO_TOKEN', () => {
+  it('detects Forgejo from a configured host, labelled or not', () => {
     expect(
       detectBackend('https://forgejo.example.com/acme/widgets.git', {
         FORGEJO_HOST: 'https://forgejo.example.com',
       })
     ).toBe('forgejo');
     expect(
-      detectBackend('git@forgejo.example.com:acme/widgets.git', { FORGEJO_TOKEN: 'x' })
+      detectBackend('git@forgejo.example.com:acme/widgets.git', {
+        FORGEJO_HOST_WORK: 'forgejo.example.com',
+      })
     ).toBe('forgejo');
+  });
+
+  it('never selects Forgejo from a token alone', () => {
+    expect(
+      detectBackend('git@forgejo.example.com:acme/widgets.git', { FORGEJO_TOKEN: 'x' })
+    ).toBeNull();
   });
 
   it('matches hosts without a scheme in env', () => {
@@ -105,13 +113,19 @@ describe('detectBackend', () => {
     ).toBe('github');
   });
 
-  it('prefers Forgejo over GitLab when both tokens are present', () => {
+  it('prefers a configured Forgejo host over GITLAB_TOKEN', () => {
+    expect(
+      detectBackend('https://code.example.org/o/r.git', {
+        FORGEJO_HOST_CODE: 'code.example.org',
+        GITLAB_TOKEN: 'y',
+      })
+    ).toBe('forgejo');
     expect(
       detectBackend('https://code.example.org/o/r.git', {
         FORGEJO_TOKEN: 'x',
         GITLAB_TOKEN: 'y',
       })
-    ).toBe('forgejo');
+    ).toBe('gitlab');
   });
 });
 

@@ -4,7 +4,6 @@
 import { tool } from '@opencode-ai/plugin';
 import {
   forgejoApi,
-  forgejoConfigMessage,
   getForgejoConfig,
   getForgejoRepo,
 } from '../lib/forgejo-utils';
@@ -112,7 +111,7 @@ export const forgejoIssueListTool = tool({
 
     try {
       const cfg = getForgejoConfig(cwd);
-      if (!cfg.ok) return forgejoConfigMessage(cfg.reason);
+      if (!cfg.ok) return cfg.message;
       const config = cfg.config;
 
       const repo = await getForgejoRepo(cwd);
