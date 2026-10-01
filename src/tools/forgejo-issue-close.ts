@@ -53,6 +53,9 @@ export function findLinkedPulls(pulls: unknown, issue: number): LinkedPull[] {
     .map((p: any) => ({ number: p.number, state: p.state, merged: p.merged === true }));
 }
 
+/** PRs scanned by the zombie check — the most recently updated ones. */
+export const LINKED_PULL_SCAN = 500;
+
 /** One line on how the issue relates to its PRs. Exported for testing. */
 export function formatLinkedPulls(issue: number, linked: LinkedPull[] | undefined): string {
   if (linked === undefined) return `⚠ Could not check PRs referencing #${issue}.`;
@@ -64,7 +67,7 @@ export function formatLinkedPulls(issue: number, linked: LinkedPull[] | undefine
     const list = linked.map((p) => `!${p.number} (${p.state})`).join(', ');
     return `⚠ No merged PR for #${issue} — referenced by ${list}. Closing as requested.`;
   }
-  return `⚠ No PR references #${issue} — closing without a linked merge.`;
+  return `⚠ No PR references #${issue} (checked the ${LINKED_PULL_SCAN} most recently updated PRs) — closing without a linked merge.`;
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -163,7 +166,11 @@ export const forgejoIssueCloseTool = tool({
       // ── Step 4: Zombie check — which PRs reference this issue ──
       let linkedPulls: LinkedPull[] | undefined;
       if (closeResult.ok) {
-        const pulls = await forgejoApiAll(`/repos/${repo}/pulls?state=all&sort=recentupdate`, config, 2);
+        const pulls = await forgejoApiAll(
+          `/repos/${repo}/pulls?state=all&sort=recentupdate`,
+          config,
+          LINKED_PULL_SCAN / 50
+        );
         linkedPulls = pulls.ok ? findLinkedPulls(pulls.data, issueNum) : undefined;
       }
 

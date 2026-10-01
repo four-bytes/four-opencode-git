@@ -319,8 +319,8 @@ export async function forgejoApi(
 
 /**
  * Fetch every page of a list endpoint (`limit=50`, at most `maxPages`). `path`
- * may already carry a query string. A failed first page is returned as-is so
- * callers can report the error; a failed later page ends the walk.
+ * may already carry a query string. Any failed page fails the whole call — a
+ * partial list would look complete to the caller.
  */
 export async function forgejoApiAll(
   path: string,
@@ -331,7 +331,9 @@ export async function forgejoApiAll(
   const items: unknown[] = [];
   for (let page = 1; page <= maxPages; page++) {
     const result = await forgejoApi(`${path}${sep}limit=50&page=${page}`, config);
-    if (!result.ok) return page === 1 ? result : { ok: true, status: 200, data: items };
+    if (!result.ok) {
+      return page === 1 ? result : { ...result, error: `page ${page}: ${result.error}` };
+    }
     const batch = Array.isArray(result.data) ? result.data : [];
     items.push(...batch);
     if (batch.length < 50) break;
@@ -376,9 +378,13 @@ export async function resolveLabelIds(
   const repoLabels = await forgejoApiAll(`/repos/${repo}/labels`, config);
   if (!repoLabels.ok) return { ids: [], unknown: [], error: repoLabels.error };
 
-  // A user-owned repo has no org — the 404 just means "no org labels".
+  // A user-owned repo has no org — only a 404 means "no org labels". Any other
+  // failure must surface, or an org label would be reported as unknown.
   const owner = repo.split('/')[0]!;
   const orgLabels = await forgejoApiAll(`/orgs/${owner}/labels`, config);
+  if (!orgLabels.ok && orgLabels.status !== 404) {
+    return { ids: [], unknown: [], error: `org labels: ${orgLabels.error}` };
+  }
   const available = [
     ...(repoLabels.data as Array<{ id: number; name: string }>),
     ...(orgLabels.ok ? (orgLabels.data as Array<{ id: number; name: string }>) : []),

@@ -14,8 +14,10 @@ import {
   formatLinkedPulls,
 } from '../src/tools/forgejo-issue-close';
 import {
+  forgejoApiAll,
   matchLabelIds,
   repoFromRemoteUrl,
+  resolveLabelIds,
   splitLabels,
   summarizeBody,
 } from '../src/lib/forgejo-utils';
@@ -241,5 +243,142 @@ describe('repoFromRemoteUrl', () => {
   it('returns null without owner and repo', () => {
     expect(repoFromRemoteUrl('https://forgejo.example.com/')).toBeNull();
     expect(repoFromRemoteUrl('not-a-url')).toBeNull();
+  });
+});
+
+// ────────────────────────────────────────────────────────────────
+// Error paths, pagination, not-configured
+// ────────────────────────────────────────────────────────────────
+
+describe('forgejoApiAll', () => {
+  const item = (i: number) => ({ id: i, name: `l${i}` });
+
+  it('walks pages until a short page', async () => {
+    await withForgejo(
+      (req) => {
+        const page = Number(new URL(req.url).searchParams.get('page'));
+        const size = page === 1 ? 50 : 3;
+        return { json: Array.from({ length: size }, (_, i) => item(page * 100 + i)) };
+      },
+      async (calls) => {
+        const result = await forgejoApiAll(`${'/repos/acme/widgets/labels'}`, {
+          token: 't',
+          host: 'https://forgejo.example.com',
+        });
+        expect(result.ok).toBe(true);
+        expect(result.data).toHaveLength(53);
+        expect(calls).toHaveLength(2);
+        expect(calls[0]!.url).toContain('limit=50&page=1');
+      }
+    );
+  });
+
+  it('fails the whole call when a later page fails', async () => {
+    await withForgejo(
+      (req) =>
+        req.url.includes('page=1')
+          ? { json: Array.from({ length: 50 }, (_, i) => item(i)) }
+          : { status: 500, json: { message: 'boom' } },
+      async () => {
+        const result = await forgejoApiAll('/repos/acme/widgets/labels', {
+          token: 't',
+          host: 'https://forgejo.example.com',
+        });
+        expect(result.ok).toBe(false);
+        expect(result.error).toBe('page 2: boom');
+      }
+    );
+  });
+});
+
+describe('resolveLabelIds — org labels', () => {
+  const config = { token: 't', host: 'https://forgejo.example.com' };
+
+  it('treats a 404 on org labels as "no org"', async () => {
+    await withForgejo(
+      (req) => (req.url.includes('/repos/acme/widgets/labels') ? { json: LABELS } : undefined),
+      async () => {
+        expect(await resolveLabelIds('acme/widgets', ['bug'], config)).toEqual({ ids: [1], unknown: [] });
+      }
+    );
+  });
+
+  it('surfaces any other org-label failure instead of calling labels unknown', async () => {
+    await withForgejo(
+      (req) =>
+        req.url.includes('/repos/acme/widgets/labels')
+          ? { json: LABELS }
+          : { status: 403, json: { message: 'forbidden' } },
+      async () => {
+        const res = await resolveLabelIds('acme/widgets', ['spec-change'], config);
+        expect(res.error).toBe('org labels: forbidden');
+      }
+    );
+  });
+});
+
+describe('API error paths', () => {
+  const fail500 = () => ({ status: 500, json: { message: 'server error' } });
+
+  it('create reports a failed POST', async () => {
+    await withForgejo(fail500, async () => {
+      expect(await forgejoIssueCreateTool.execute({ title: 't' }, ctx(REPO))).toBe(
+        'Error creating issue: server error'
+      );
+    });
+  });
+
+  it('comment and comments report failures', async () => {
+    await withForgejo(fail500, async () => {
+      expect(await forgejoIssueCommentTool.execute({ issue: 3, body: 'x' }, ctx(REPO))).toBe(
+        'Error commenting on #3: server error'
+      );
+      expect(await forgejoIssueCommentsTool.execute({ issue: 3 }, ctx(REPO))).toBe(
+        'Error reading comments on #3: server error'
+      );
+    });
+  });
+
+  it('close posts the comment first, then closes', async () => {
+    await withForgejo(
+      (req) => {
+        if (req.method === 'GET' && req.url === `${API}/issues/12`) return { json: { title: 'T', state: 'open' } };
+        if (req.method === 'POST') return { status: 201, json: {} };
+        if (req.method === 'PATCH') return { json: { state: 'closed' } };
+        if (req.url.startsWith(`${API}/pulls`)) return { json: [] };
+        return undefined;
+      },
+      async (calls) => {
+        const out = await forgejoIssueCloseTool.execute({ issue: 12, comment: 'done `x`' }, ctx(REPO));
+        expect(out).toContain('✓ Comment posted on #12');
+        expect(out).toContain('No PR references #12');
+        const writes = calls.filter((c) => c.method !== 'GET');
+        expect(writes.map((c) => c.method)).toEqual(['POST', 'PATCH']);
+        expect(writes[0]!.body).toEqual({ body: 'done `x`' });
+      }
+    );
+  });
+});
+
+describe('not configured', () => {
+  it('every new tool returns the one-line message and makes no request', async () => {
+    const realFetch = globalThis.fetch;
+    let called = false;
+    globalThis.fetch = (async () => {
+      called = true;
+      return new Response('null');
+    }) as unknown as typeof fetch;
+    try {
+      const outs = [
+        await forgejoIssueCreateTool.execute({ title: 't' }, ctx(REPO)),
+        await forgejoIssueCommentTool.execute({ issue: 1, body: 'x' }, ctx(REPO)),
+        await forgejoIssueCommentsTool.execute({ issue: 1 }, ctx(REPO)),
+        await forgejoIssueCloseTool.execute({ issue: 1 }, ctx(REPO)),
+      ];
+      for (const out of outs) expect(out).toContain('No Forgejo token for forgejo.example.com');
+      expect(called).toBe(false);
+    } finally {
+      globalThis.fetch = realFetch;
+    }
   });
 });
