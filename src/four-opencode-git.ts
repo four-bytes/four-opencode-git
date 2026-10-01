@@ -27,6 +27,10 @@ import { forgejoPrStatusTool } from './tools/forgejo-pr-status';
 import { forgejoIssueCreateTool } from './tools/forgejo-issue-create';
 import { forgejoIssueCommentTool } from './tools/forgejo-issue-comment';
 import { forgejoIssueCommentsTool } from './tools/forgejo-issue-comments';
+import { forgejoPrCreateTool } from './tools/forgejo-pr-create';
+import { forgejoPrMergeTool } from './tools/forgejo-pr-merge';
+import { forgejoPrCloseTool } from './tools/forgejo-pr-close';
+import { forgejoPrCommentsTool } from './tools/forgejo-pr-comments';
 import { setPluginClient } from './lib/plugin-log';
 
 const FourOpencodeGit: Plugin = async (ctx) => {
@@ -58,6 +62,10 @@ const FourOpencodeGit: Plugin = async (ctx) => {
       forgejo_issue_comment: forgejoIssueCommentTool,
       forgejo_issue_comments: forgejoIssueCommentsTool,
       forgejo_pr_status: forgejoPrStatusTool,
+      forgejo_pr_create: forgejoPrCreateTool,
+      forgejo_pr_merge: forgejoPrMergeTool,
+      forgejo_pr_close: forgejoPrCloseTool,
+      forgejo_pr_comments: forgejoPrCommentsTool,
     },
   };
 };
