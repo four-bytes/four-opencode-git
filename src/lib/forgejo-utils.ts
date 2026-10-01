@@ -228,18 +228,38 @@ export function getForgejoConfig(
   return result;
 }
 
-/** Get `owner/repo` from current repo's remote origin (Forgejo uses raw paths). */
+/**
+ * `owner/repo` from a remote URL — the last two path segments, `.git` stripped,
+ * so subpath installs (`https://host/forgejo/owner/repo`) work too. Handles
+ * `https://host/o/r.git`, `ssh://git@host:2222/o/r.git` and `git@host:o/r.git`.
+ * Exported for testing.
+ */
+export function repoFromRemoteUrl(url: string): string | null {
+  const trimmed = url.trim();
+  let path: string;
+  if (trimmed.includes('://')) {
+    try {
+      path = new URL(trimmed).pathname;
+    } catch {
+      return null;
+    }
+  } else {
+    const scp = trimmed.match(/^[^@]+@[^:]+:(.+)$/);
+    if (!scp) return null;
+    path = scp[1]!;
+  }
+  const parts = path.replace(/\.git$/, '').split('/').filter((p) => p !== '');
+  if (parts.length < 2) return null;
+  // Forgejo API paths take raw owner/repo — do NOT encodeURIComponent.
+  return `${parts[parts.length - 2]}/${parts[parts.length - 1]}`;
+}
+
+/** Get `owner/repo` from the current repo's `origin` remote. */
 export async function getForgejoRepo(cwd: string): Promise<string | null> {
   try {
     const proc = Bun.spawn(['git', 'remote', 'get-url', 'origin'], { cwd, stdout: 'pipe' });
     const url = (await new Response(proc.stdout).text()).trim();
-    // Extract: <EMAIL_1>:group/project.git → group/project
-    const match = url.match(/[/:]([^/]+\/[^.]+?)(?:\.git)?$/);
-    if (match) {
-      // Forgejo API paths take raw owner/repo — do NOT encodeURIComponent.
-      return match[1]!;
-    }
-    return null;
+    return url ? repoFromRemoteUrl(url) : null;
   } catch {
     return null;
   }
@@ -295,4 +315,92 @@ export async function forgejoApi(
       error: err instanceof Error ? err.message : String(err),
     };
   }
+}
+
+/**
+ * Fetch every page of a list endpoint (`limit=50`, at most `maxPages`). `path`
+ * may already carry a query string. A failed first page is returned as-is so
+ * callers can report the error; a failed later page ends the walk.
+ */
+export async function forgejoApiAll(
+  path: string,
+  config: ForgejoConfig,
+  maxPages = 10
+): Promise<ForgejoApiResult> {
+  const sep = path.includes('?') ? '&' : '?';
+  const items: unknown[] = [];
+  for (let page = 1; page <= maxPages; page++) {
+    const result = await forgejoApi(`${path}${sep}limit=50&page=${page}`, config);
+    if (!result.ok) return page === 1 ? result : { ok: true, status: 200, data: items };
+    const batch = Array.isArray(result.data) ? result.data : [];
+    items.push(...batch);
+    if (batch.length < 50) break;
+  }
+  return { ok: true, status: 200, data: items };
+}
+
+export interface LabelResolution {
+  ids: number[];
+  unknown: string[];
+  error?: string;
+}
+
+/**
+ * Pure: map label names to ids, case-insensitively. Exported for testing.
+ * Repo labels win over org labels of the same name.
+ */
+export function matchLabelIds(
+  names: string[],
+  available: Array<{ id: number; name: string }>
+): { ids: number[]; unknown: string[] } {
+  const byName = new Map<string, number>();
+  for (const label of [...available].reverse()) byName.set(label.name.toLowerCase(), label.id);
+  const ids: number[] = [];
+  const unknown: string[] = [];
+  for (const name of names) {
+    const id = byName.get(name.trim().toLowerCase());
+    if (id === undefined) unknown.push(name.trim());
+    else if (!ids.includes(id)) ids.push(id);
+  }
+  return { ids, unknown };
+}
+
+/** Resolve label names against the repo's labels plus its org's labels (if any). */
+export async function resolveLabelIds(
+  repo: string,
+  names: string[],
+  config: ForgejoConfig
+): Promise<LabelResolution> {
+  if (names.length === 0) return { ids: [], unknown: [] };
+
+  const repoLabels = await forgejoApiAll(`/repos/${repo}/labels`, config);
+  if (!repoLabels.ok) return { ids: [], unknown: [], error: repoLabels.error };
+
+  // A user-owned repo has no org — the 404 just means "no org labels".
+  const owner = repo.split('/')[0]!;
+  const orgLabels = await forgejoApiAll(`/orgs/${owner}/labels`, config);
+  const available = [
+    ...(repoLabels.data as Array<{ id: number; name: string }>),
+    ...(orgLabels.ok ? (orgLabels.data as Array<{ id: number; name: string }>) : []),
+  ];
+
+  return matchLabelIds(names, available);
+}
+
+/** Split a comma-separated label argument into trimmed, non-empty names. */
+export function splitLabels(value: string | undefined): string[] {
+  if (!value) return [];
+  return value
+    .split(',')
+    .map((l) => l.trim())
+    .filter((l) => l !== '');
+}
+
+/** First line of a comment body, cut to `max` chars, plus a `(+N lines)` hint. */
+export function summarizeBody(body: string, max = 100): string {
+  const lines = body.replace(/\r\n/g, '\n').trim().split('\n');
+  let first = (lines[0] ?? '').trim();
+  if (first.length > max) first = `${first.slice(0, max - 1)}…`;
+  const rest = lines.length - 1;
+  return rest > 0 ? `${first} (+${rest} lines)` : first;
 }
