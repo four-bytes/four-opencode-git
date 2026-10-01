@@ -84,34 +84,82 @@ read back reliably.
 
 ### Forgejo
 
-Tokens are stored **per host** in `~/.config/four-git/secrets.env` (`$XDG_CONFIG_HOME`
-honoured). Each host is a pair sharing a free-form `<NAME>`:
+The `forgejo_*` tools (and `issue_list` on a Forgejo remote) talk to the Forgejo REST API
+(`/api/v1`). They need one API token per Forgejo instance. No `fj` / `tea` CLI is required.
+
+#### 1. Create a token in Forgejo
+
+On your Forgejo instance: avatar → **Settings** → **Applications** → **Generate new token**.
+
+| Scope | Needed for |
+|---|---|
+| `issue` — Read | `forgejo_issue_list`, `forgejo_issue_view`, `issue_list` |
+| `issue` — Read and write | `forgejo_issue_close` (and creating / commenting on issues) |
+| `repository` — Read | `forgejo_pr_status` |
+| `repository` — Read and write | creating, merging and closing pull requests |
+
+Copy the token right away — Forgejo shows it only once.
+
+#### 2. Store it in the secrets file
+
+One **pair per host**. `<NAME>` is any label you choose (`A-Z`, `0-9`, `_`); it only links
+the host to its token.
 
 ```bash
 mkdir -p ~/.config/four-git
 cat > ~/.config/four-git/secrets.env <<'ENV'
+# work instance
 FORGEJO_HOST_WORK=forgejo.example.com
-FORGEJO_TOKEN_WORK=...
+FORGEJO_TOKEN_WORK=paste-token-here
+# a second instance — add as many pairs as you need
 FORGEJO_HOST_CODEBERG=codeberg.org
-FORGEJO_TOKEN_CODEBERG=...
+FORGEJO_TOKEN_CODEBERG=paste-token-here
 ENV
 chmod 600 ~/.config/four-git/secrets.env
 ```
 
-- The `origin` remote's hostname (https or ssh) selects the entry; the token is sent **only**
-  to the API base of that entry. A repo whose host has no entry gets a one-line
-  `No Forgejo token for <host> …` and no request is made.
-- `FORGEJO_HOST_<NAME>` accepts `host`, `https://host`, or `https://host:port/subpath`; the API
-  base is built from this value, never from the remote.
-- A hostname configured under two names is refused rather than guessed.
-- The unlabelled pair `FORGEJO_HOST` + `FORGEJO_TOKEN` still works as one entry. A
-  `FORGEJO_TOKEN` without `FORGEJO_HOST` is ignored (warning in the opencode log).
-- Requests never follow a redirect — a moved instance returns a one-line error instead of
-  carrying the token to the new location.
-- An exported variable overrides the file per key (so an exported `FORGEJO_HOST_<NAME>` pairs
-  with a file-sourced `FORGEJO_TOKEN_<NAME>`). Values read from the file never enter
-  `process.env`. A project `.env` is **not** read — a cloned repo must not be able to redirect
-  a token. A group/world-readable file is reported in the opencode log.
+`FORGEJO_HOST_<NAME>` accepts `forgejo.example.com`, `https://forgejo.example.com`, or a full
+base with port / subpath such as `https://forgejo.example.com:3000/forgejo`. If
+`$XDG_CONFIG_HOME` is set, the file lives at `$XDG_CONFIG_HOME/four-git/secrets.env`.
+The file is read on every call — no opencode restart needed after editing it.
+
+#### 3. Check it
+
+```bash
+# the token works (expects your user as JSON)
+curl -s -H "Authorization: token <token>" https://forgejo.example.com/api/v1/user
+# the repo's origin hostname matches FORGEJO_HOST_<NAME>
+git remote get-url origin
+```
+
+Then, in opencode inside that repo, `forgejo_issue_list` should list issues.
+
+#### How the token is protected
+
+- The `origin` remote's **hostname** (https or ssh remote, ports ignored) selects exactly one
+  entry. The token is sent **only** to that entry's configured base — never to a host taken
+  from the remote, so a GitHub or unknown repo never receives a Forgejo token.
+- Requests never follow a redirect; a moved instance returns a one-line error instead.
+- Values read from the file never enter `process.env`, so other plugins and shell tools
+  cannot see them.
+- A project `.env` is **not** read — a cloned repository must not be able to redirect a token.
+- An exported variable overrides the file for the same key (useful for a one-off test).
+- The unlabelled pair `FORGEJO_HOST` + `FORGEJO_TOKEN` still works as one entry.
+
+#### Troubleshooting
+
+| Message | Fix |
+|---|---|
+| `No Forgejo token for <host> (set FORGEJO_HOST_<NAME>=<host> + FORGEJO_TOKEN_<NAME> …)` | Add a pair for that host. The hostname must equal the one in `git remote get-url origin`. |
+| `No Forgejo token for <host> (set FORGEJO_TOKEN_<NAME>)` | The host is configured but its token line is missing or empty. |
+| `Forgejo host <host> configured more than once (…)` | Two names point at the same host — delete one pair. |
+| `Forgejo not configured (no origin remote with a host)` | The repo has no `origin`, or its URL has no host. |
+| `HTTP 302 redirect to … not followed — fix FORGEJO_HOST` | Set `FORGEJO_HOST_<NAME>` to the final URL (e.g. `https://` instead of `http://`, or the new domain). |
+| `HTTP 401` / `HTTP 403` | Token expired, revoked, or missing a scope from step 1. |
+
+Warnings that do not fail a call — a group/world-readable secrets file, a `FORGEJO_TOKEN_<NAME>`
+without its `FORGEJO_HOST_<NAME>` — appear once in the opencode log (service
+`four-opencode-git`).
 
 The repository (`owner/repo`) is derived from `git remote get-url origin`; `ctx.directory`
 is used as the working directory, never `process.cwd()`.
