@@ -24,6 +24,9 @@ import { forgejoIssueListTool } from './tools/forgejo-issue-list';
 import { forgejoIssueViewTool } from './tools/forgejo-issue-view';
 import { forgejoIssueCloseTool } from './tools/forgejo-issue-close';
 import { forgejoPrStatusTool } from './tools/forgejo-pr-status';
+import { forgejoIssueCreateTool } from './tools/forgejo-issue-create';
+import { forgejoIssueCommentTool } from './tools/forgejo-issue-comment';
+import { forgejoIssueCommentsTool } from './tools/forgejo-issue-comments';
 import { setPluginClient } from './lib/plugin-log';
 
 const FourOpencodeGit: Plugin = async (ctx) => {
@@ -51,6 +54,9 @@ const FourOpencodeGit: Plugin = async (ctx) => {
       forgejo_issue_list: forgejoIssueListTool,
       forgejo_issue_view: forgejoIssueViewTool,
       forgejo_issue_close: forgejoIssueCloseTool,
+      forgejo_issue_create: forgejoIssueCreateTool,
+      forgejo_issue_comment: forgejoIssueCommentTool,
+      forgejo_issue_comments: forgejoIssueCommentsTool,
       forgejo_pr_status: forgejoPrStatusTool,
     },
   };

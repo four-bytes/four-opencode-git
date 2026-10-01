@@ -4,6 +4,7 @@
 import { tool } from '@opencode-ai/plugin';
 import {
   forgejoApi,
+  forgejoApiAll,
   getForgejoConfig,
   getForgejoRepo,
 } from '../lib/forgejo-utils';
@@ -21,6 +22,49 @@ export interface ForgejoCloseResult {
   closed: boolean;
   commentError?: string;
   closeError?: string;
+  /** PRs whose title/body reference the issue; undefined when the lookup failed. */
+  linkedPulls?: LinkedPull[];
+}
+
+export interface LinkedPull {
+  number: number;
+  state: string;
+  merged: boolean;
+}
+
+// ────────────────────────────────────────────────────────────────
+// Zombie check (pure)
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * PRs that reference `#issue` — a closing keyword in the body (`Closes #12`) or
+ * `#12` in the title (`feat: x (#12)`). Exported for testing.
+ */
+export function findLinkedPulls(pulls: unknown, issue: number): LinkedPull[] {
+  if (!Array.isArray(pulls)) return [];
+  const inBody = new RegExp(`\\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\\s+#${issue}\\b`, 'i');
+  const inTitle = new RegExp(`#${issue}\\b`);
+  return pulls
+    .filter(
+      (p: any) =>
+        inBody.test(typeof p?.body === 'string' ? p.body : '') ||
+        inTitle.test(typeof p?.title === 'string' ? p.title : '')
+    )
+    .map((p: any) => ({ number: p.number, state: p.state, merged: p.merged === true }));
+}
+
+/** One line on how the issue relates to its PRs. Exported for testing. */
+export function formatLinkedPulls(issue: number, linked: LinkedPull[] | undefined): string {
+  if (linked === undefined) return `⚠ Could not check PRs referencing #${issue}.`;
+  const merged = linked.filter((p) => p.merged);
+  if (merged.length > 0) {
+    return `✓ Referenced by merged PR ${merged.map((p) => `!${p.number}`).join(', ')}.`;
+  }
+  if (linked.length > 0) {
+    const list = linked.map((p) => `!${p.number} (${p.state})`).join(', ');
+    return `⚠ No merged PR for #${issue} — referenced by ${list}. Closing as requested.`;
+  }
+  return `⚠ No PR references #${issue} — closing without a linked merge.`;
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -36,7 +80,10 @@ function formatForgejoIssueClose(params: ForgejoCloseResult): string {
   const lines: string[] = [];
   if (params.commentPosted) lines.push(`✓ Comment posted on #${params.issue}`);
   if (params.commentError) lines.push(`⚠ Failed to post comment: ${params.commentError}`);
-  if (params.closed) lines.push(`✓ Issue #${params.issue} "${params.title}" closed.`);
+  if (params.closed) {
+    lines.push(`✓ Issue #${params.issue} "${params.title}" closed.`);
+    lines.push(formatLinkedPulls(params.issue, params.linkedPulls));
+  }
   if (params.closeError) lines.push(`✗ Failed to close issue: ${params.closeError}`);
   return lines.join('\n');
 }
@@ -47,11 +94,11 @@ function formatForgejoIssueClose(params: ForgejoCloseResult): string {
 
 export const forgejoIssueCloseTool = tool({
   description:
-    'Close a Forgejo issue, with an optional comment. The comment is posted via the REST API as a tool argument — it never passes through a shell. Forgejo state queries go through this tool — fj has no --json.',
+    'Close a Forgejo issue, with an optional comment. Reports whether a merged PR references the issue (zombie check). The comment is posted via the REST API as a tool argument — it never passes through a shell.',
 
   args: {
     issue: tool.schema.number().describe('Issue number (index) to close'),
-    comment: tool.schema.string().describe('Optional comment to post before closing'),
+    comment: tool.schema.string().optional().describe('Optional comment to post before closing'),
   },
 
   async execute(args, ctx) {
@@ -113,9 +160,17 @@ export const forgejoIssueCloseTool = tool({
         body: { state: 'closed' },
       });
 
+      // ── Step 4: Zombie check — which PRs reference this issue ──
+      let linkedPulls: LinkedPull[] | undefined;
+      if (closeResult.ok) {
+        const pulls = await forgejoApiAll(`/repos/${repo}/pulls?state=all&sort=recentupdate`, config, 2);
+        linkedPulls = pulls.ok ? findLinkedPulls(pulls.data, issueNum) : undefined;
+      }
+
       const output = formatForgejoIssueClose({
         issue: issueNum,
         title,
+        linkedPulls,
         alreadyClosed: false,
         commentPosted,
         closed: closeResult.ok,
