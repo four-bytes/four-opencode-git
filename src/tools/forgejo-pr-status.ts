@@ -8,6 +8,7 @@ import {
   getForgejoRepo,
 } from '../lib/forgejo-utils';
 import { runGit } from '../lib/git-utils';
+import { fetchReviewSummary, formatReviewLine } from '../lib/forgejo-reviews';
 import { logDebugEvent } from '../lib/debug-logger';
 
 // ────────────────────────────────────────────────────────────────
@@ -26,6 +27,8 @@ export interface ForgejoPull {
   deletions?: number;
   comments?: number;
   html_url?: string;
+  mergeable?: boolean;
+  user?: { login?: string };
 }
 
 export interface MergedVia {
@@ -73,14 +76,31 @@ export function resolveStateLine(pr: ForgejoPull, mergedVia: MergedVia | null): 
   return 'closed';
 }
 
-/** Pure 4-line formatter — exported for testing without a repo or API. */
-export function formatForgejoPrStatus(pr: ForgejoPull, mergedVia: MergedVia | null): string {
+/**
+ * Pure formatter — exported for testing without a repo or API. `reviewLine`
+ * (open PRs only) adds the threads line that decides whether a merge is blocked.
+ */
+export function formatForgejoPrStatus(
+  pr: ForgejoPull,
+  mergedVia: MergedVia | null,
+  reviewLine?: string
+): string {
   const lines: string[] = [
     `PR #${pr.number} — ${pr.title}`,
     `  state     ${resolveStateLine(pr, mergedVia)}`,
     `  branch    ${pr.head.ref} → ${pr.base.ref}`,
     `  diff      +${pr.additions ?? 0} -${pr.deletions ?? 0} · ${pr.comments ?? 0} comments`,
   ];
+  if (pr.state === 'open') {
+    lines.push(
+      pr.mergeable === false
+        ? '  merge     not mergeable (conflicts or branch protection)'
+        : pr.mergeable === true
+          ? '  merge     mergeable'
+          : '  merge     unknown (Forgejo has not computed it yet)'
+    );
+  }
+  if (reviewLine !== undefined) lines.push(`  threads   ${reviewLine}`);
   return lines.join('\n');
 }
 
@@ -90,7 +110,7 @@ export function formatForgejoPrStatus(pr: ForgejoPull, mergedVia: MergedVia | nu
 
 export const forgejoPrStatusTool = tool({
   description:
-    'Check a Forgejo PR status and resolve merged-vs-abandoned. Forgejo reports an out-of-forge squash-merge as closed + not merged, so this tool checks git for the head commit when needed. Use before branch cleanup.',
+    'Check a Forgejo PR status: state, mergeability and open human review threads (which block forgejo_pr_merge). For a PR merged outside the forge (git squash) Forgejo reports closed + not merged, so this tool checks git for the head commit. Use before merging and before branch cleanup.',
 
   args: {
     pr: tool.schema.number().describe('PR number (index) to check'),
@@ -130,13 +150,20 @@ export const forgejoPrStatusTool = tool({
         }
       }
 
+      // Open PRs: report the human threads that would block forgejo_pr_merge.
+      let reviewLine: string | undefined;
+      if (pr.state === 'open') {
+        const summary = await fetchReviewSummary(repo, prNum, pr.user?.login ?? '', config);
+        reviewLine = summary ? formatReviewLine(summary) : 'could not read reviews';
+      }
+
       logDebugEvent('forgejo_pr_status.done', {
         pr: prNum,
         state: pr.state,
         merged: pr.merged,
         mergedVia: mergedVia?.branch ?? null,
       });
-      return formatForgejoPrStatus(pr, mergedVia);
+      return formatForgejoPrStatus(pr, mergedVia, reviewLine);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       logDebugEvent('forgejo_pr_status.error', { error: msg });
