@@ -7,10 +7,11 @@ import { runGit } from '../lib/git-utils';
 import { getGitLabConfig, getGitLabProjectId, gitlabApi } from '../lib/gitlab-utils';
 import {
   forgejoApi,
-  forgejoConfigMessage,
-  deriveHostFromRemoteUrl,
+  forgejoVars,
   getForgejoConfig,
   getForgejoRepo,
+  isForgejoHost,
+  remoteHostname,
 } from '../lib/forgejo-utils';
 import { normalizeGitLabIssues } from './gitlab-issue-list';
 import { normalizeForgejoIssueListItems } from './forgejo-issue-list';
@@ -55,18 +56,13 @@ function toHostname(value: string | null | undefined): string | null {
   }
 }
 
-/** Hostname of the `origin` remote URL, or null when it carries none. */
-function remoteHostname(remoteUrl: string | null): string | null {
-  if (!remoteUrl) return null;
-  return toHostname(deriveHostFromRemoteUrl(remoteUrl));
-}
-
 /**
  * Detect the issue backend from the origin remote and environment.
  *
  * Precedence (first match wins):
  *   1. remote host contains `github.com`            → github
- *   2. `FORGEJO_TOKEN` set, or remote host equals `FORGEJO_HOST` → forgejo
+ *   2. remote host is a configured Forgejo host (`FORGEJO_HOST[_<NAME>]`) → forgejo.
+ *      A token alone never selects Forgejo — it must not reach an unknown host.
  *   3. `GITLAB_TOKEN` set, remote host equals `GITLAB_HOST`, or remote host is
  *      `gitlab.com`                                 → gitlab
  *   4. otherwise                                    → null
@@ -81,8 +77,7 @@ export function detectBackend(
 
   if (host && (host === 'github.com' || host.endsWith('.github.com'))) return 'github';
 
-  const forgejoHost = toHostname(env.FORGEJO_HOST);
-  if (env.FORGEJO_TOKEN || (forgejoHost && host && forgejoHost === host)) return 'forgejo';
+  if (isForgejoHost(remoteUrl, env)) return 'forgejo';
 
   const gitlabHost = toHostname(env.GITLAB_HOST);
   if (
@@ -239,7 +234,7 @@ async function fetchForgejoIssues(
   cwd: string
 ): Promise<CommonIssue[] | string> {
   const cfg = getForgejoConfig(cwd);
-  if (!cfg.ok) return forgejoConfigMessage(cfg.reason);
+  if (!cfg.ok) return cfg.message;
 
   const repo = await getForgejoRepo(cwd);
   if (!repo) return 'Could not determine Forgejo repository from origin remote.';
@@ -314,7 +309,7 @@ export const issueListTool = tool({
       }
 
       const remoteUrl = await getRemoteUrl(cwd);
-      const backend = resolveBackend(remoteUrl, process.env, override);
+      const backend = resolveBackend(remoteUrl, { ...process.env, ...forgejoVars() }, override);
       if (!backend) {
         return noBackendMessage(remoteUrl);
       }

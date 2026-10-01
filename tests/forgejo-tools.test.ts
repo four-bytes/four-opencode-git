@@ -18,25 +18,7 @@ import {
   resolveStateLine,
   type ForgejoPull,
 } from '../src/tools/forgejo-pr-status';
-import { deriveHostFromRemoteUrl, getForgejoConfig } from '../src/lib/forgejo-utils';
-
-/** Run `fn` with a temporary env overlay, restoring the previous values afterwards. */
-function withEnv(vars: Record<string, string | undefined>, fn: () => void): void {
-  const saved: Record<string, string | undefined> = {};
-  for (const key of Object.keys(vars)) saved[key] = process.env[key];
-  try {
-    for (const [key, value] of Object.entries(vars)) {
-      if (value === undefined) delete process.env[key];
-      else process.env[key] = value;
-    }
-    fn();
-  } finally {
-    for (const [key, value] of Object.entries(saved)) {
-      if (value === undefined) delete process.env[key];
-      else process.env[key] = value;
-    }
-  }
-}
+import { deriveHostFromRemoteUrl } from '../src/lib/forgejo-utils';
 
 // ────────────────────────────────────────────────────────────────
 // Unit tests — formatForgejoIssueList
@@ -470,29 +452,5 @@ describe('deriveHostFromRemoteUrl', () => {
   it('returns null for an underivable URL', () => {
     expect(deriveHostFromRemoteUrl('not-a-url')).toBeNull();
     expect(deriveHostFromRemoteUrl('')).toBeNull();
-  });
-});
-
-describe('getForgejoConfig', () => {
-  it('uses FORGEJO_HOST when set', () => {
-    withEnv({ FORGEJO_TOKEN: 'tok', FORGEJO_HOST: 'https://forge.example' }, () => {
-      expect(getForgejoConfig()).toEqual({
-        ok: true,
-        config: { token: 'tok', host: 'https://forge.example' },
-      });
-    });
-  });
-
-  it('returns reason "host" when the token is present but no host is derivable', () => {
-    // No cwd → remote is not consulted, and FORGEJO_HOST is unset → host absent.
-    withEnv({ FORGEJO_TOKEN: 'tok', FORGEJO_HOST: undefined }, () => {
-      expect(getForgejoConfig()).toEqual({ ok: false, reason: 'host' });
-    });
-  });
-
-  it('returns reason "token" when FORGEJO_TOKEN is unset', () => {
-    withEnv({ FORGEJO_TOKEN: undefined, FORGEJO_HOST: 'https://forge.example' }, () => {
-      expect(getForgejoConfig()).toEqual({ ok: false, reason: 'token' });
-    });
   });
 });

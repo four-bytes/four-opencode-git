@@ -3,7 +3,7 @@
 ## Pointer
 - Meta-repo: `~/four-opencode-plugins/`
 - Repo: `four-bytes/four-opencode-git`
-- Package: `@four-bytes/four-opencode-git` v0.1.3
+- Package: `@four-bytes/four-opencode-git` v0.2.0
 - Build: `bun run build` → `dist/four-opencode-git.js`
 - Test: `bun test`
 
@@ -55,14 +55,16 @@ returns `No issue backend for <host>.` as a plain string.
 ## Architecture
 - Entry: `src/four-opencode-git.ts` — registers all 22 tools
 - Tools: `src/tools/` — one file per tool; analysis tools export execute fns used by git_analyze dispatcher
-- Lib: `src/lib/` — git-utils.ts, gh-utils.ts, gitlab-utils.ts, forgejo-utils.ts, debug-logger.ts, diff-parse.ts
+- Lib: `src/lib/` — git-utils.ts, gh-utils.ts, gitlab-utils.ts, forgejo-utils.ts, secrets.ts, plugin-log.ts, debug-logger.ts, diff-parse.ts
 - Tests: `tests/` — bun-native
 
 ## Dependencies
 - `@opencode-ai/plugin` 1.15.13 (exact pin)
 - Bun runtime, ESM modules
 - `gh` CLI for GitHub tools, `glab` for GitLab tools
-- Forgejo REST API (`FORGEJO_TOKEN`, `FORGEJO_HOST`) — no `fj` CLI dependency
+- Forgejo REST API — no `fj` CLI dependency. Tokens per host in `~/.config/four-git/secrets.env`
+  (`FORGEJO_HOST_<NAME>` + `FORGEJO_TOKEN_<NAME>`), matched against the origin hostname; never
+  written into `process.env`, never sent to another host (`src/lib/secrets.ts`, `forgejo-utils.ts`)
 
 ## Loading
 ```jsonc

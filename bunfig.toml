@@ -1,2 +1,6 @@
 [install]
 exact = true
+
+[test]
+# Isolates every test from the developer's real ~/.config — see tests/setup.ts.
+preload = ["./tests/setup.ts"]
