@@ -284,12 +284,13 @@ describe('formatForgejoPrStatus', () => {
   };
 
   it('formats an open PR', () => {
-    const output = formatForgejoPrStatus(basePr, null);
+    const output = formatForgejoPrStatus({ ...basePr, mergeable: true }, null);
     expect(output).toContain('PR #1304 — feat: add updated today/yesterday invoice filters (#1303)');
     expect(output).toContain('state     open');
     expect(output).toContain('branch    feat/1303-updated-at-filters → main');
     expect(output).toContain('diff      +14 -0 · 0 comments');
-    expect(output.split('\n')).toHaveLength(4);
+    expect(output).toContain('merge     mergeable');
+    expect(output.split('\n')).toHaveLength(5);
   });
 
   it('formats a forge-side merged PR', () => {
