@@ -3,11 +3,11 @@
 ## Pointer
 - Meta-repo: `~/four-opencode-plugins/`
 - Repo: `four-bytes/four-opencode-git`
-- Package: `@four-bytes/four-opencode-git` v0.2.0
+- Package: `@four-bytes/four-opencode-git` v0.3.0
 - Build: `bun run build` → `dist/four-opencode-git.js`
 - Test: `bun test`
 
-## Tool Stack (22 tools)
+## Tool Stack (25 tools)
 ### git_analyze — Unified Analysis Dispatcher
 Collapses 7 metrics into 1 tool schema. Pass `metric` arg to route:
 - `curse_score` — rank files by risk (changes × recency × churn)
@@ -46,14 +46,17 @@ returns `No issue backend for <host>.` as a plain string.
 - `gitlab_mr_status` — check MR state/mergeability/pipelines
 - `gitlab_issue_list` — list issues (state/label/assignee/search), one line per issue
 
-### Forgejo (4 tools)
+### Forgejo (7 tools)
 - `forgejo_issue_list` — list issues (state/label/assignee), one line per issue
 - `forgejo_issue_view` — issue detail, body truncated to ~20 lines, comment count
-- `forgejo_issue_close` — close issue with optional API-posted comment (no shell)
+- `forgejo_issue_create` — create issue with labels in one call; unknown label → nothing created
+- `forgejo_issue_comment` — comment on issue/PR (API body argument, no shell)
+- `forgejo_issue_comments` — comments one line each, newest N
+- `forgejo_issue_close` — close issue with optional API-posted comment + linked-PR (zombie) check
 - `forgejo_pr_status` — PR state; resolves `closed` + not-merged into `merged_via git-squash` via git
 
 ## Architecture
-- Entry: `src/four-opencode-git.ts` — registers all 22 tools
+- Entry: `src/four-opencode-git.ts` — registers all 25 tools
 - Tools: `src/tools/` — one file per tool; analysis tools export execute fns used by git_analyze dispatcher
 - Lib: `src/lib/` — git-utils.ts, gh-utils.ts, gitlab-utils.ts, forgejo-utils.ts, secrets.ts, plugin-log.ts, debug-logger.ts, diff-parse.ts
 - Tests: `tests/` — bun-native
