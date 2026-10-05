@@ -26,8 +26,8 @@ returns `No issue backend for <host>.` as a plain string.
 
 ### Git Core (3 tools)
 - `git_diff` — structured diff output (staged, file, between refs). Saves ~90% tokens
-- `git_status` — repo orientation: branch, upstream, ahead/behind, remote, tree counts. Parses `status --porcelain=v2`; `verbose` appends up to 10 changed paths
-- `git_log_structured` — parsed log with author/date/file filters. Saves ~50% tokens
+- `git_status` — repo orientation: branch, upstream, ahead/behind, remote, tree counts. Parses `status --porcelain=v2`; `verbose` appends up to 10 changed paths; `refs` appends local+remote branch list (short hash + ahead/behind vs the default branch)
+- `git_log_structured` — parsed log with author/date/file filters + `pickaxe`/`grep_diff` history search, `all` (ref decoration) and `range` (e.g. `main..master`). Saves ~50% tokens
 
 ### GitHub (9 tools)
 - `gh_pr_create` — create PR with title/body/base/head

@@ -203,6 +203,57 @@ export function repoNameFromRemoteUrl(url: string): string | null {
 }
 
 // ────────────────────────────────────────────────────────────────
+// Refs — branch listing + ahead/behind vs default branch
+// ────────────────────────────────────────────────────────────────
+
+export interface GitRef {
+  /** Short ref name — `main` for local, `origin/main` for remote. */
+  name: string;
+  /** 7-char object short hash. */
+  hash: string;
+  isRemote: boolean;
+  /** null for remote branches or when the default branch is unknown. */
+  ahead: number | null;
+  behind: number | null;
+}
+
+/**
+ * Parse `git for-each-ref --format=%(objectname:short)%09%(refname) refs/heads refs/remotes`.
+ * Ignores non-branch refs (tags etc.).
+ */
+export function parseForEachRef(raw: string): GitRef[] {
+  const refs: GitRef[] = [];
+  for (const line of raw.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const [hash, refname] = trimmed.split('\t');
+    if (!hash || !refname) continue;
+    if (refname.startsWith('refs/remotes/')) {
+      refs.push({ name: refname.slice('refs/remotes/'.length), hash, isRemote: true, ahead: null, behind: null });
+    } else if (refname.startsWith('refs/heads/')) {
+      refs.push({ name: refname.slice('refs/heads/'.length), hash, isRemote: false, ahead: null, behind: null });
+    }
+  }
+  return refs;
+}
+
+/** Render the refs block, capped at 20 refs then `… +N more`. */
+export function formatRefsBlock(refs: GitRef[]): string {
+  const lines: string[] = [];
+  const shown = refs.slice(0, 20);
+  for (const r of shown) {
+    const ab = !r.isRemote && r.ahead !== null && r.behind !== null
+      ? ` (ahead ${r.ahead}, behind ${r.behind})`
+      : '';
+    lines.push(`  ${r.name.padEnd(24)} ${r.hash}${ab}`);
+  }
+  if (refs.length > 20) {
+    lines.push(`  … +${refs.length - 20} more`);
+  }
+  return lines.join('\n');
+}
+
+// ────────────────────────────────────────────────────────────────
 // Formatting
 // ────────────────────────────────────────────────────────────────
 
@@ -220,12 +271,14 @@ function label(name: string): string {
  * @param remoteLines     Raw `git remote -v` output, or '' when unavailable.
  * @param fallbackRepoName Used when no remote URL is present (default `repository`).
  * @param verbose         Append up to 10 changed paths (default off).
+ * @param refsBlock       Pre-rendered branch list block (see {@link formatRefsBlock}).
  */
 export function formatGitStatus(
   parsed: GitStatusParsed,
   remoteLines: string,
   fallbackRepoName = 'repository',
-  verbose = false
+  verbose = false,
+  refsBlock?: string
 ): string {
   const remote = parseRemote(remoteLines);
   const repoName = (remote && repoNameFromRemoteUrl(remote.url)) || fallbackRepoName;
@@ -274,7 +327,48 @@ export function formatGitStatus(
     }
   }
 
+  if (refsBlock !== undefined) {
+    lines.push('');
+    lines.push(refsBlock);
+  }
+
   return lines.join('\n');
+}
+
+async function resolveDefaultBranch(cwd: string, remoteName: string | null): Promise<string | null> {
+  if (remoteName) {
+    try {
+      const out = await runGit(['symbolic-ref', '--short', `refs/remotes/${remoteName}/HEAD`], cwd);
+      const parts = out.split('/');
+      if (parts.length >= 2) return parts.slice(1).join('/');
+    } catch { /* best-effort */ }
+  }
+  for (const b of ['main', 'master']) {
+    try {
+      await runGit(['show-ref', '--verify', '--quiet', `refs/heads/${b}`], cwd);
+      return b;
+    } catch { /* try next */ }
+  }
+  return null;
+}
+
+async function gatherRefs(cwd: string, remoteName: string | null): Promise<string> {
+  const raw = await runGit(
+    ['for-each-ref', '--format=%(objectname:short)%09%(refname)', 'refs/heads', 'refs/remotes'],
+    cwd
+  );
+  const refs = parseForEachRef(raw);
+  const defaultBranch = await resolveDefaultBranch(cwd, remoteName);
+  for (const r of refs) {
+    if (r.isRemote || !defaultBranch || r.name === defaultBranch) continue;
+    try {
+      // left = commits in default not in branch (behind), right = branch not in default (ahead)
+      const out = await runGit(['rev-list', '--left-right', '--count', `${defaultBranch}...${r.name}`], cwd);
+      const m = out.trim().match(/^(\d+)\s+(\d+)$/);
+      if (m) { r.behind = parseInt(m[1]!, 10); r.ahead = parseInt(m[2]!, 10); }
+    } catch { /* best-effort */ }
+  }
+  return formatRefsBlock(refs);
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -290,10 +384,15 @@ export const gitStatusTool = tool({
       .boolean()
       .optional()
       .describe('Append up to 10 changed paths (default off)'),
+    refs: tool.schema
+      .boolean()
+      .optional()
+      .describe('Append a block listing local+remote branches (short hash, ahead/behind vs default branch; default off)'),
   },
 
   async execute(args, ctx) {
     const verbose = args.verbose === true;
+    const refs = args.refs === true;
     const cwd = ctx.directory;
 
     logDebugEvent('git_status.start', { verbose, cwd });
@@ -313,7 +412,16 @@ export const gitStatusTool = tool({
       }
 
       const parsed = parseGitStatus(raw);
-      return formatGitStatus(parsed, remoteLines, basename(cwd), verbose);
+      const remoteName = parseRemote(remoteLines)?.name ?? null;
+      let refsBlock: string | undefined;
+      if (refs) {
+        try {
+          refsBlock = await gatherRefs(cwd, remoteName);
+        } catch {
+          refsBlock = undefined;
+        }
+      }
+      return formatGitStatus(parsed, remoteLines, basename(cwd), verbose, refsBlock);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       logDebugEvent('git_status.error', { error: msg });

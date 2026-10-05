@@ -1,5 +1,15 @@
 # HISTORY — four-opencode-git
 
+## 0.5.0 — git_log_structured history search + git_status refs (#25)
+- `git_log_structured`: `pickaxe` (`-S`), `grep_diff` (`-G`, mutually exclusive with
+  `pickaxe`), `all` (`--all` + ref decoration) and `range` (revision range, placed
+  before `--`); existing args are now optional; `range`/`pickaxe` values starting with
+  `-` are rejected
+- `git_status`: `refs` lists local + remote branches (short hash) with per-local-branch
+  ahead/behind against the default branch (`for-each-ref` + `rev-list --left-right
+  --count`), capped at 20 refs; a missing default branch or remote is best-effort
+- Answers the three previously-denied queries: history search (`-S`), ref listing, diverged-range diff
+
 ## 0.4.0 — Forgejo PR lifecycle (#17, PR #20)
 - **`forgejo_pr_create`**: `head` defaults to the current branch, `base` to the repo default branch
 - **`forgejo_pr_merge`**: merge through the API (`POST /pulls/{n}/merge`, default squash + delete

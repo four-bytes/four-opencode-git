@@ -2,7 +2,12 @@
 // Copyright (c) 2025-2026 Four Bytes
 
 import { describe, it, expect } from 'bun:test';
-import { parseStatOutput, formatLogOutput } from '../src/tools/git-log-structured';
+import {
+  parseStatOutput,
+  formatLogOutput,
+  buildLogArgs,
+  validateLogArgs,
+} from '../src/tools/git-log-structured';
 
 describe('parseStatOutput', () => {
   it('parses standard git show --stat output', () => {
@@ -153,5 +158,46 @@ describe('formatLogOutput', () => {
 
     const output = formatLogOutput(entries, 'summary');
     expect(output).toContain('last 1 commit');
+  });
+});
+
+describe('buildLogArgs / validateLogArgs', () => {
+  it('builds a pickaxe query with --all and ref decoration', () => {
+    const args = buildLogArgs({ pickaxe: '/home/robby', all: true });
+    expect(args).toContain('-S/home/robby');
+    expect(args).toContain('--all');
+    expect(args.find((a) => a.startsWith('--format='))).toContain('%s%d');
+  });
+
+  it('builds a grep_diff query', () => {
+    const args = buildLogArgs({ grepDiff: 'TODO|FIXME' });
+    expect(args).toContain('-GTODO|FIXME');
+  });
+
+  it('adds --all even without pickaxe', () => {
+    const args = buildLogArgs({ all: true });
+    expect(args).toContain('--all');
+  });
+
+  it('places range before -- and the file after it', () => {
+    const args = buildLogArgs({ range: 'main..master', file: 'x.ts' });
+    expect(args.indexOf('main..master')).toBeGreaterThan(-1);
+    expect(args.indexOf('main..master')).toBeLessThan(args.indexOf('--'));
+    expect(args.indexOf('--')).toBeLessThan(args.indexOf('x.ts'));
+  });
+
+  it('rejects pickaxe and grep_diff together', () => {
+    const err = validateLogArgs({ pickaxe: 'x', grepDiff: 'y' });
+    expect(err).not.toBeNull();
+    expect(err).toContain('mutually exclusive');
+  });
+
+  it('rejects pickaxe and range values starting with "-"', () => {
+    expect(validateLogArgs({ pickaxe: '-x' })).not.toBeNull();
+    expect(validateLogArgs({ range: '-x' })).not.toBeNull();
+  });
+
+  it('accepts a clean arg set', () => {
+    expect(validateLogArgs({})).toBeNull();
   });
 });
