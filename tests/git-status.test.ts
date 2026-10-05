@@ -10,8 +10,11 @@ import {
   formatGitStatus,
   parseRemote,
   repoNameFromRemoteUrl,
+  parseForEachRef,
+  formatRefsBlock,
   gitStatusTool,
   type GitStatusParsed,
+  type GitRef,
 } from '../src/tools/git-status';
 
 const GIT_AVAILABLE = Bun.which('git') !== null;
@@ -310,6 +313,10 @@ describe('gitStatusTool', () => {
     expect(gitStatusTool.description.length).toBeGreaterThan(0);
     expect(gitStatusTool.args.verbose).toBeDefined();
   });
+
+  it('exposes a refs arg', () => {
+    expect(gitStatusTool.args.refs).toBeDefined();
+  });
 });
 
 // ────────────────────────────────────────────────────────────────
@@ -361,6 +368,126 @@ describe('git_status integration', () => {
       expect(out).toContain('1 staged, 0 unstaged, 1 untracked');
       expect(out).toContain('a.txt');
       expect(out).toContain('new.txt');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('parseForEachRef / formatRefsBlock', () => {
+  it('parses local and remote branches and ignores tags', () => {
+    const raw = [
+      'abc1234\trefs/heads/main',
+      'def5678\trefs/remotes/origin/main',
+      'aaa0000\trefs/tags/v1',
+    ].join('\n');
+
+    const refs = parseForEachRef(raw);
+    expect(refs).toHaveLength(2);
+    expect(refs[0]).toEqual({ name: 'main', hash: 'abc1234', isRemote: false, ahead: null, behind: null });
+    expect(refs[1]).toEqual({ name: 'origin/main', hash: 'def5678', isRemote: true, ahead: null, behind: null });
+  });
+
+  it('caps the block at 20 refs then appends the remainder count', () => {
+    const refs: GitRef[] = Array.from({ length: 22 }, (_, i) => ({
+      name: `branch-${i}`,
+      hash: `hash${i}`,
+      isRemote: false,
+      ahead: null,
+      behind: null,
+    }));
+
+    const block = formatRefsBlock(refs);
+    expect(block).toContain('branch-0');
+    expect(block).toContain('branch-19');
+    expect(block).not.toContain('branch-20');
+    expect(block).not.toContain('branch-21');
+    expect(block).toContain('… +2 more');
+  });
+
+  it('renders ahead/behind for local refs only', () => {
+    const refs: GitRef[] = [
+      { name: 'feature', hash: 'aaa1111', isRemote: false, ahead: 2, behind: 1 },
+      { name: 'origin/feature', hash: 'bbb2222', isRemote: true, ahead: 2, behind: 1 },
+    ];
+
+    const block = formatRefsBlock(refs);
+    expect(block).toContain('(ahead 2, behind 1)');
+    const remoteLine = block.split('\n').find((l) => l.includes('origin/feature'))!;
+    expect(remoteLine).not.toContain('ahead');
+  });
+
+  it('appends the refs block via formatGitStatus only when provided', () => {
+    const block = '  main   abc1234 (ahead 0, behind 0)';
+    const withBlock = formatGitStatus(parsedWith(), '', 'fallback', false, block);
+    expect(withBlock).toContain(block);
+    const withoutBlock = formatGitStatus(parsedWith(), '', 'fallback', false);
+    expect(withoutBlock).not.toContain(block);
+  });
+});
+
+describe('git_status integration — refs', () => {
+  test.skipIf(!GIT_AVAILABLE)('lists diverged branches with ahead/behind and no remote', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'four-git-status-refs-'));
+    try {
+      const run = (args: string[]): string => {
+        const result = Bun.spawnSync(['git', ...args], {
+          cwd: dir,
+          env: { ...process.env },
+        });
+        if (result.exitCode !== 0) {
+          throw new Error(`git ${args.join(' ')} failed: ${result.stderr.toString().trim()}`);
+        }
+        return result.stdout.toString().trim();
+      };
+
+      run(['init', '-q']);
+      run(['symbolic-ref', 'HEAD', 'refs/heads/main']);
+      run(['config', 'user.email', 'test@example.com']);
+      run(['config', 'user.name', 'Test']);
+      writeFileSync(join(dir, 'a.txt'), 'a\n');
+      run(['add', '.']);
+      run(['commit', '-qm', 'init']);
+
+      // Diverge: feature gets one commit, main gets another. No remote.
+      run(['checkout', '-qb', 'feature']);
+      writeFileSync(join(dir, 'feature.txt'), 'f\n');
+      run(['add', '.']);
+      run(['commit', '-qm', 'feature work']);
+
+      run(['checkout', '-q', 'main']);
+      writeFileSync(join(dir, 'main.txt'), 'm\n');
+      run(['add', '.']);
+      run(['commit', '-qm', 'main work']);
+
+      const raw = run([
+        'for-each-ref',
+        '--format=%(objectname:short)%09%(refname)',
+        'refs/heads',
+        'refs/remotes',
+      ]);
+      const refs = parseForEachRef(raw);
+      const defaultBranch = 'main';
+      for (const r of refs) {
+        if (r.isRemote || r.name === defaultBranch) continue;
+        const out = run(['rev-list', '--left-right', '--count', `${defaultBranch}...${r.name}`]);
+        const m = out.match(/^(\d+)\s+(\d+)$/);
+        if (m) {
+          r.behind = parseInt(m[1]!, 10);
+          r.ahead = parseInt(m[2]!, 10);
+        }
+      }
+
+      const block = formatRefsBlock(refs);
+      expect(block).toContain('main');
+      expect(block).toContain('feature');
+      expect(block).toContain('(ahead 1, behind 1)');
+
+      const statusRaw = run(['status', '--porcelain=v2', '--branch', '--untracked-files=normal']);
+      const parsed = parseGitStatus(statusRaw);
+      const out = formatGitStatus(parsed, '', 'fallback', false, block);
+      expect(out).toContain('main');
+      expect(out).toContain('feature');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

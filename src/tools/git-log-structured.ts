@@ -19,16 +19,67 @@ interface FileStat {
   deleted: number;
 }
 
+export interface LogArgs {
+  count?: number;
+  author?: string;
+  since?: string;
+  file?: string;
+  format?: string;
+  pickaxe?: string;
+  grepDiff?: string;
+  all?: boolean;
+  range?: string;
+}
+
+/**
+ * Return an error string when the arg combination is invalid, else null.
+ * No git call happens on the invalid path.
+ */
+export function validateLogArgs(a: LogArgs): string | null {
+  if (a.pickaxe && a.grepDiff) {
+    return 'Error: pickaxe and grep_diff are mutually exclusive';
+  }
+  if (a.pickaxe && a.pickaxe.startsWith('-')) {
+    return 'Error: pickaxe value must not start with "-"';
+  }
+  if (a.range && a.range.startsWith('-')) {
+    return 'Error: range value must not start with "-"';
+  }
+  return null;
+}
+
+/**
+ * Build the `git log` argv. Values are passed as separate argv entries
+ * (never a shell string). `range` is placed before `--`; `-- <file>` last.
+ */
+export function buildLogArgs(a: LogArgs): string[] {
+  const count = a.count ?? 20;
+  const formatSpec = a.all ? '%H|%an|%ai|%s%d' : '%H|%an|%ai|%s';
+  const args = ['log', `--format=${formatSpec}`, `-n${count}`];
+  if (a.all) args.push('--all');
+  if (a.author) args.push(`--author=${a.author}`);
+  if (a.since) args.push(`--since=${a.since}`);
+  if (a.pickaxe) args.push(`-S${a.pickaxe}`);
+  if (a.grepDiff) args.push(`-G${a.grepDiff}`);
+  if (a.range) args.push(a.range);
+  if (a.file) args.push('--', a.file);
+  return args;
+}
+
 export const gitLogStructuredTool = tool({
   description:
     'Returns structured git log — filterable by author, date range, file pattern. Replaces multi-command bash pipelines that agents currently use.',
 
   args: {
-    count: tool.schema.number().describe('Number of commits to return (default: 20)'),
-    author: tool.schema.string().describe('Filter by author name'),
-    since: tool.schema.string().describe("Time filter (e.g., '2 weeks ago', '2024-01-01')"),
-    file: tool.schema.string().describe('Filter to commits touching this file'),
-    format: tool.schema.string().describe("Output format: 'summary' (default) or 'detailed'"),
+    count: tool.schema.number().optional().describe('Number of commits to return (default: 20)'),
+    author: tool.schema.string().optional().describe('Filter by author name'),
+    since: tool.schema.string().optional().describe("Time filter (e.g., '2 weeks ago', '2024-01-01')"),
+    file: tool.schema.string().optional().describe('Filter to commits touching this file'),
+    format: tool.schema.string().optional().describe("Output format: 'summary' (default) or 'detailed'"),
+    pickaxe: tool.schema.string().optional().describe("Show commits that add/remove the string (-S<value>)"),
+    grep_diff: tool.schema.string().optional().describe('Show commits whose diff matches the regex (-G<value>); mutually exclusive with pickaxe'),
+    all: tool.schema.boolean().optional().describe('Pretend all refs are listed (--all); appends ref decoration'),
+    range: tool.schema.string().optional().describe("Revision range (e.g. 'main..master'); placed before --"),
   },
 
   async execute(args, ctx) {
@@ -37,7 +88,17 @@ export const gitLogStructuredTool = tool({
     const since = args.since as string | undefined;
     const file = args.file as string | undefined;
     const format = (args.format as string) ?? 'summary';
+    const pickaxe = args.pickaxe as string | undefined;
+    const grepDiff = args.grep_diff as string | undefined;
+    const all = args.all === true;
+    const range = args.range as string | undefined;
     const cwd = ctx.directory;
+
+    const invalid = validateLogArgs({ count, author, since, file, format, pickaxe, grepDiff, all, range });
+    if (invalid !== null) {
+      logDebugEvent('git_log_structured.error', { error: invalid });
+      return invalid;
+    }
 
     logDebugEvent('git_log_structured.start', {
       count,
@@ -45,22 +106,14 @@ export const gitLogStructuredTool = tool({
       since: since ?? 'none',
       file: file ?? 'none',
       format,
+      pickaxe: pickaxe ?? 'none',
+      grepDiff: grepDiff ?? 'none',
+      all,
+      range: range ?? 'none',
     });
 
     try {
-      // Build log command
-      const logArgs = ['log', '--format=%H|%an|%ai|%s', `-n${count}`];
-
-      if (author) {
-        logArgs.push(`--author=${author}`);
-      }
-      if (since) {
-        logArgs.push(`--since=${since}`);
-      }
-      if (file) {
-        logArgs.push('--', file);
-      }
-
+      const logArgs = buildLogArgs({ count, author, since, file, format, pickaxe, grepDiff, all, range });
       const logOutput = await runGit(logArgs, cwd);
       const entries = parseLogOutput(logOutput);
 

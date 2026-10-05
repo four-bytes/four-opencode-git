@@ -16,8 +16,11 @@ Git analysis + GitHub/GitLab ops tools for opencode agents.
 - `git_diff` — structured diff output (staged, file, between refs)
 - `git_status` — repo orientation in one call: branch, upstream, ahead/behind, remote
   and working-tree counts. Parses `git status --porcelain=v2 --branch`; optional
-  `verbose` appends up to 10 changed paths
-- `git_log_structured` — parsed log with author/date/file filters
+  `verbose` appends up to 10 changed paths, `refs` appends local+remote branches
+  (short hash, ahead/behind vs the default branch)
+- `git_log_structured` — parsed log with author/date/file filters, plus `pickaxe` (`-S`)
+  / `grep_diff` (`-G`) history search, `all` (ref decoration) and `range` (e.g.
+  `main..master`)
 
 #### `git_status` output
 
