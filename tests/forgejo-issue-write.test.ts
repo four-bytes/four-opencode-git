@@ -308,10 +308,22 @@ describe('resolveLabelIds — org labels', () => {
       (req) =>
         req.url.includes('/repos/acme/widgets/labels')
           ? { json: LABELS }
-          : { status: 403, json: { message: 'forbidden' } },
+          : { status: 500, json: { message: 'boom' } },
       async () => {
         const res = await resolveLabelIds('acme/widgets', ['spec-change'], config);
-        expect(res.error).toBe('org labels: forbidden');
+        expect(res.error).toBe('org labels: boom');
+      }
+    );
+  });
+
+  it('treats a 403 on org labels as "no scope" (falls back to repo labels)', async () => {
+    await withForgejo(
+      (req) =>
+        req.url.includes('/repos/acme/widgets/labels')
+          ? { json: LABELS }
+          : { status: 403, json: { message: 'forbidden' } },
+      async () => {
+        expect(await resolveLabelIds('acme/widgets', ['bug'], config)).toEqual({ ids: [1], unknown: [] });
       }
     );
   });

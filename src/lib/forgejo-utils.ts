@@ -378,11 +378,14 @@ export async function resolveLabelIds(
   const repoLabels = await forgejoApiAll(`/repos/${repo}/labels`, config);
   if (!repoLabels.ok) return { ids: [], unknown: [], error: repoLabels.error };
 
-  // A user-owned repo has no org — only a 404 means "no org labels". Any other
-  // failure must surface, or an org label would be reported as unknown.
+  // A user-owned repo has no org — a 404 means "no org labels". A 403 means the
+  // token lacks the `read:organization` scope (not part of the documented
+  // `issue` + `repository` setup), so org labels are simply unavailable — fall
+  // back to repo labels. Any other failure must surface, or an org label would
+  // be reported as unknown.
   const owner = repo.split('/')[0]!;
   const orgLabels = await forgejoApiAll(`/orgs/${owner}/labels`, config);
-  if (!orgLabels.ok && orgLabels.status !== 404) {
+  if (!orgLabels.ok && orgLabels.status !== 404 && orgLabels.status !== 403) {
     return { ids: [], unknown: [], error: `org labels: ${orgLabels.error}` };
   }
   const available = [
