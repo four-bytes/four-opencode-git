@@ -3,7 +3,7 @@
 ## Pointer
 - Meta-repo: `~/four-opencode-plugins/`
 - Repo: `four-bytes/four-opencode-git`
-- Package: `@four-bytes/four-opencode-git` v0.4.0
+- Package: `@four-bytes/four-opencode-git` v0.5.0
 - Build: `bun run build` → `dist/four-opencode-git.js`
 - Test: `bun test`
 
