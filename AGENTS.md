@@ -3,11 +3,11 @@
 ## Pointer
 - Meta-repo: `~/four-opencode-plugins/`
 - Repo: `four-bytes/four-opencode-git`
-- Package: `@four-bytes/four-opencode-git` v0.5.0
+- Package: `@four-bytes/four-opencode-git` v0.6.0
 - Build: `bun run build` → `dist/four-opencode-git.js`
 - Test: `bun test`
 
-## Tool Stack (29 tools)
+## Tool Stack (32 tools)
 ### git_analyze — Unified Analysis Dispatcher
 Collapses 7 metrics into 1 tool schema. Pass `metric` arg to route:
 - `curse_score` — rank files by risk (changes × recency × churn)
@@ -46,7 +46,7 @@ returns `No issue backend for <host>.` as a plain string.
 - `gitlab_mr_status` — check MR state/mergeability/pipelines
 - `gitlab_issue_list` — list issues (state/label/assignee/search), one line per issue
 
-### Forgejo (11 tools)
+### Forgejo (14 tools)
 - `forgejo_issue_list` — list issues (state/label/assignee), one line per issue
 - `forgejo_issue_view` — issue detail, body truncated to ~20 lines, comment count
 - `forgejo_issue_create` — create issue with labels in one call; unknown label → nothing created
@@ -58,9 +58,12 @@ returns `No issue backend for <host>.` as a plain string.
 - `forgejo_pr_comments` — conversation + verdicts + inline comments, open human threads marked
 - `forgejo_pr_merge` — API merge (squash + delete branch default); refuses closed/conflicted PRs and open human threads (bots never block)
 - `forgejo_pr_close` — close without merging, optional comment
+- `forgejo_repo_list` — repositories one line each (visibility, archived, description); `org` lists an org
+- `forgejo_repo_create` — create repo (user or org namespace), private by default; existing repo reported by `owner/name`
+- `forgejo_repo_archive` — set/clear `archived` on `owner/repo` (default: origin repo)
 
 ## Architecture
-- Entry: `src/four-opencode-git.ts` — registers all 29 tools
+- Entry: `src/four-opencode-git.ts` — registers all 32 tools
 - Tools: `src/tools/` — one file per tool; analysis tools export execute fns used by git_analyze dispatcher
 - Lib: `src/lib/` — git-utils.ts, gh-utils.ts, gitlab-utils.ts, forgejo-utils.ts, forgejo-reviews.ts, secrets.ts, plugin-log.ts, debug-logger.ts, diff-parse.ts
 - Tests: `tests/` — bun-native

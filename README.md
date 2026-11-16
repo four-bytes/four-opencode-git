@@ -9,7 +9,7 @@ Git analysis + GitHub/GitLab ops tools for opencode agents.
 "plugin": ["file:///path/to/four-opencode-git/dist/four-opencode-git.js"]
 ```
 
-## Tools (29)
+## Tools (32)
 
 ### Git core (3)
 
@@ -71,7 +71,7 @@ the `remote` line is omitted. Detached HEAD reports the 7-char short OID. Pass
   issue; `repo`/`project` optionally override the origin remote. GitLab's `opened` API
   state is mapped from the user-facing `open`
 
-### Forgejo (11)
+### Forgejo (14)
 
 Forgejo's `fj` CLI has no `--json` and no `--format`, and reports an out-of-forge
 squash-merge as `Closed`. These tools talk to the Forgejo REST API so state can be
@@ -96,6 +96,12 @@ read back reliably.
   bot findings never block. A thread counts as open until it is **resolved** in the Forgejo UI;
   a reply alone does not clear it. The PR then shows **merged** and `Closes #N` closes the issue
 - `forgejo_pr_close` — close a PR without merging (abandoned), with an optional comment
+- `forgejo_repo_list` — list repositories, one line per repo (`[private]`/`[public]`,
+  `[archived]`, description); `org` lists that org instead of the authenticated user
+- `forgejo_repo_create` — create a repository for the user or in an org namespace; private
+  by default; an existing repo is reported by `owner/name` and nothing is changed
+- `forgejo_repo_archive` — set or clear the `archived` flag on `owner/repo` (default: the
+  origin remote's repo); `archived=false` unarchives
 
 #### Workflow on a Forgejo repo
 
@@ -130,8 +136,8 @@ On your Forgejo instance: avatar → **Settings** → **Applications** → **Gen
 |---|---|
 | `issue` — Read | `forgejo_issue_list`, `forgejo_issue_view`, `forgejo_issue_comments`, `forgejo_pr_comments`, `issue_list` |
 | `issue` — Read and write | `forgejo_issue_create`, `forgejo_issue_comment`, `forgejo_issue_close`, `forgejo_pr_close` with a comment |
-| `repository` — Read | `forgejo_pr_status`, `forgejo_pr_comments` |
-| `repository` — Read and write | `forgejo_pr_create`, `forgejo_pr_merge`, `forgejo_pr_close` |
+| `repository` — Read | `forgejo_pr_status`, `forgejo_pr_comments`, `forgejo_repo_list` |
+| `repository` — Read and write | `forgejo_pr_create`, `forgejo_pr_merge`, `forgejo_pr_close`, `forgejo_repo_create`, `forgejo_repo_archive` |
 
 PR conversation comments go through Forgejo's issue endpoints, so the PR tools need the
 `issue` scope too. Simplest setup: **`issue` and `repository` both Read and write.**
