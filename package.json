@@ -7,7 +7,7 @@
   "main": "./dist/four-opencode-git.js",
   "files": ["dist"],
   "scripts": {
-    "build": "bun build ./src/four-opencode-git.ts --outdir dist --target bun --format esm --external @opencode-ai/plugin",
+    "build": "bun build ./src/four-opencode-git.ts --outdir dist --target bun --format esm",
     "test": "bun test",
     "lint": "bun run lint:ts",
     "lint:ts": "tsc --noEmit"
