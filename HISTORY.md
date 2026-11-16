@@ -1,5 +1,15 @@
 # HISTORY — four-opencode-git
 
+## 0.6.0 — Forgejo repos: list, create, archive (#38)
+- **`forgejo_repo_list`**: repositories one line each (`[private]`/`[public]`, `[archived]`,
+  description); lists the authenticated user's repos or an org's (`org`), `limit` after
+  pagination
+- **`forgejo_repo_create`**: create a repo for the user or in an org namespace, private by
+  default; undefined fields are omitted from the request; HTTP 409 names the existing repo
+- **`forgejo_repo_archive`**: set/clear the `archived` flag via `PATCH /repos/{owner}/{repo}`,
+  target defaults to the origin remote's repo; 404 → repo not found
+- Forgejo 11 → 14 tools, 29 → 32 total
+
 ## 0.5.0 — git_log_structured history search + git_status refs (#25)
 - `git_log_structured`: `pickaxe` (`-S`), `grep_diff` (`-G`, mutually exclusive with
   `pickaxe`), `all` (`--all` + ref decoration) and `range` (revision range, placed

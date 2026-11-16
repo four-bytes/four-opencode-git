@@ -31,6 +31,9 @@ import { forgejoPrCreateTool } from './tools/forgejo-pr-create';
 import { forgejoPrMergeTool } from './tools/forgejo-pr-merge';
 import { forgejoPrCloseTool } from './tools/forgejo-pr-close';
 import { forgejoPrCommentsTool } from './tools/forgejo-pr-comments';
+import { forgejoRepoListTool } from './tools/forgejo-repo-list';
+import { forgejoRepoCreateTool } from './tools/forgejo-repo-create';
+import { forgejoRepoArchiveTool } from './tools/forgejo-repo-archive';
 import { setPluginClient } from './lib/plugin-log';
 
 const FourOpencodeGit: Plugin = async (ctx) => {
@@ -66,6 +69,9 @@ const FourOpencodeGit: Plugin = async (ctx) => {
       forgejo_pr_merge: forgejoPrMergeTool,
       forgejo_pr_close: forgejoPrCloseTool,
       forgejo_pr_comments: forgejoPrCommentsTool,
+      forgejo_repo_list: forgejoRepoListTool,
+      forgejo_repo_create: forgejoRepoCreateTool,
+      forgejo_repo_archive: forgejoRepoArchiveTool,
     },
   };
 };
