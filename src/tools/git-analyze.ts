@@ -47,6 +47,10 @@ export const gitAnalyze = tool({
     threshold: tool.schema.number().optional().describe("Minimum co-commit rate 0.0-1.0 (for implicit_coupling)"),
     path: tool.schema.string().optional().describe("Directory path (for bus_factor, ownership)"),
     window_days: tool.schema.number().optional().describe("Comparison window size in days (for trend)"),
+    directory: tool.schema
+      .string()
+      .optional()
+      .describe("Absolute path to the repository to inspect (default: current working directory)"),
   },
 
   async execute(args, ctx) {
@@ -56,8 +60,9 @@ export const gitAnalyze = tool({
       throw new Error(`Unknown metric: ${args.metric}. Valid options: ${METRICS.join(", ")}`);
     }
 
-    // Strip metric from args and remove undefined values
-    const { metric: _, ...rest } = args;
+    // Strip metric/directory from args and remove undefined values.
+    // `directory` is injected through ctx below — the metric tools read ctx.directory.
+    const { metric: _, directory, ...rest } = args;
     const cleanArgs: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(rest)) {
       if (value !== undefined) {
@@ -65,6 +70,8 @@ export const gitAnalyze = tool({
       }
     }
 
-    return await fn.execute(cleanArgs, ctx);
+    const override = directory as string | undefined;
+    const execCtx = override ? { ...ctx, directory: override } : ctx;
+    return await fn.execute(cleanArgs, execCtx);
   },
 });

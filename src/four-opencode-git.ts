@@ -16,6 +16,10 @@ import { ghPrCreateTool } from './tools/gh-pr-create';
 import { ghPrCommentTool } from './tools/gh-pr-comment';
 import { ghPrCommentsTool } from './tools/gh-pr-comments';
 import { ghPrReviewTool } from './tools/gh-pr-review';
+import { ghPrMergeTool } from './tools/gh-pr-merge';
+import { ghPrCloseTool } from './tools/gh-pr-close';
+import { ghIssueEditTool } from './tools/gh-issue-edit';
+import { ghIssueViewTool } from './tools/gh-issue-view';
 import { ghBotReviewTool } from './tools/gh-bot-review';
 import { gitlabMrCreateTool } from './tools/gitlab-mr-create';
 import { gitlabMrCommentTool } from './tools/gitlab-mr-comment';
@@ -56,6 +60,10 @@ const FourOpencodeGit: Plugin = async (ctx) => {
       gh_pr_comment: ghPrCommentTool,
       gh_pr_comments: ghPrCommentsTool,
       gh_pr_review: ghPrReviewTool,
+      gh_pr_merge: ghPrMergeTool,
+      gh_pr_close: ghPrCloseTool,
+      gh_issue_edit: ghIssueEditTool,
+      gh_issue_view: ghIssueViewTool,
       gh_bot_review: ghBotReviewTool,
       gitlab_mr_create: gitlabMrCreateTool,
       gitlab_mr_comment: gitlabMrCommentTool,

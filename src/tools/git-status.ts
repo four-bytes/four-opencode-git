@@ -388,12 +388,16 @@ export const gitStatusTool = tool({
       .boolean()
       .optional()
       .describe('Append a block listing local+remote branches (short hash, ahead/behind vs default branch; default off)'),
+    directory: tool.schema
+      .string()
+      .optional()
+      .describe('Absolute path to the repository to inspect (default: current working directory)'),
   },
 
   async execute(args, ctx) {
     const verbose = args.verbose === true;
     const refs = args.refs === true;
-    const cwd = ctx.directory;
+    const cwd = (args.directory as string | undefined) ?? ctx.directory;
 
     logDebugEvent('git_status.start', { verbose, cwd });
 

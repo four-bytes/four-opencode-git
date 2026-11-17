@@ -80,6 +80,10 @@ export const gitLogStructuredTool = tool({
     grep_diff: tool.schema.string().optional().describe('Show commits whose diff matches the regex (-G<value>); mutually exclusive with pickaxe'),
     all: tool.schema.boolean().optional().describe('Pretend all refs are listed (--all); appends ref decoration'),
     range: tool.schema.string().optional().describe("Revision range (e.g. 'main..master'); placed before --"),
+    directory: tool.schema
+      .string()
+      .optional()
+      .describe('Absolute path to the repository to inspect (default: current working directory)'),
   },
 
   async execute(args, ctx) {
@@ -92,7 +96,7 @@ export const gitLogStructuredTool = tool({
     const grepDiff = args.grep_diff as string | undefined;
     const all = args.all === true;
     const range = args.range as string | undefined;
-    const cwd = ctx.directory;
+    const cwd = (args.directory as string | undefined) ?? ctx.directory;
 
     const invalid = validateLogArgs({ count, author, since, file, format, pickaxe, grepDiff, all, range });
     if (invalid !== null) {
