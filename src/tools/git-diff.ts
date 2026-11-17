@@ -142,6 +142,10 @@ export const gitDiffTool = tool({
     file: tool.schema.string().describe('Specific file path to diff'),
     from: tool.schema.string().describe('From commit/branch/ref'),
     to: tool.schema.string().describe('To commit/branch/ref (defaults to HEAD if from is set)'),
+    directory: tool.schema
+      .string()
+      .optional()
+      .describe('Absolute path to the repository to inspect (default: current working directory)'),
   },
 
   async execute(args, ctx) {
@@ -149,7 +153,7 @@ export const gitDiffTool = tool({
     const file = args.file as string | undefined;
     const from = args.from as string | undefined;
     const to = args.to as string | undefined;
-    const cwd = ctx.directory;
+    const cwd = (args.directory as string | undefined) ?? ctx.directory;
 
     logDebugEvent('git_diff.start', { staged, file, from, to, cwd });
 
