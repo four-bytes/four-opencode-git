@@ -1,6 +1,6 @@
 {
   "name": "@four-bytes/four-opencode-git",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Git analysis + GitHub/GitLab ops tools for opencode agents",
   "type": "module",
   "license": "Apache-2.0",
@@ -8,6 +8,7 @@
   "files": ["dist"],
   "scripts": {
     "build": "bun build ./src/four-opencode-git.ts --outdir dist --target bun --format esm",
+    "postinstall": "bun run build",
     "test": "bun test",
     "lint": "bun run lint:ts",
     "lint:ts": "tsc --noEmit"
