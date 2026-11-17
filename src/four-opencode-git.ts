@@ -8,6 +8,7 @@ import { gitLogStructuredTool } from './tools/git-log-structured';
 import { gitAnalyze } from './tools/git-analyze';
 import { ghIssueListTool } from './tools/gh-issue-list';
 import { ghIssueCloseTool } from './tools/gh-issue-close';
+import { ghIssueCreateTool } from './tools/gh-issue-create';
 import { ghPrStatusTool } from './tools/gh-pr-status';
 import { ghBranchCleanupTool } from './tools/gh-branch-cleanup';
 import { ghReleaseInfoTool } from './tools/gh-release-info';
@@ -47,6 +48,7 @@ const FourOpencodeGit: Plugin = async (ctx) => {
       git_analyze: gitAnalyze,
       gh_issue_list: ghIssueListTool,
       gh_issue_close: ghIssueCloseTool,
+      gh_issue_create: ghIssueCreateTool,
       gh_pr_status: ghPrStatusTool,
       gh_branch_cleanup: ghBranchCleanupTool,
       gh_release_info: ghReleaseInfoTool,

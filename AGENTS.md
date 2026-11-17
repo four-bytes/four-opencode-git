@@ -7,7 +7,7 @@
 - Build: `bun run build` → `dist/four-opencode-git.js`
 - Test: `bun test`
 
-## Tool Stack (33 tools)
+## Tool Stack (34 tools)
 ### git_analyze — Unified Analysis Dispatcher
 Collapses 7 metrics into 1 tool schema. Pass `metric` arg to route:
 - `curse_score` — rank files by risk (changes × recency × churn)
@@ -29,7 +29,7 @@ returns `No issue backend for <host>.` as a plain string.
 - `git_status` — repo orientation: branch, upstream, ahead/behind, remote, tree counts. Parses `status --porcelain=v2`; `verbose` appends up to 10 changed paths; `refs` appends local+remote branch list (short hash + ahead/behind vs the default branch)
 - `git_log_structured` — parsed log with author/date/file filters + `pickaxe`/`grep_diff` history search, `all` (ref decoration) and `range` (e.g. `main..master`). Saves ~50% tokens
 
-### GitHub (10 tools)
+### GitHub (11 tools)
 - `gh_pr_create` — create PR with title/body/base/head
 - `gh_pr_comment` — add comment to PR
 - `gh_pr_review` — fetch review comments + state
@@ -37,6 +37,7 @@ returns `No issue backend for <host>.` as a plain string.
 - `gh_pr_status` — PR mergeability (reviews, CI, conflicts)
 - `gh_issue_list` — list issues with label/assignee/state filters
 - `gh_issue_close` — close issue with zombie detection
+- `gh_issue_create` — create issue; validates labels/assignees first, unknown aborts before the POST
 - `gh_branch_cleanup` — find stale merged branches (dry_run first!)
 - `gh_release_info` — structured release metadata
 - `gh_bot_review` — parse AI bot reviews (CodeRabbit, cubic-dev)
@@ -64,7 +65,7 @@ returns `No issue backend for <host>.` as a plain string.
 - `forgejo_repo_archive` — set/clear `archived` on `owner/repo` (default: origin repo)
 
 ## Architecture
-- Entry: `src/four-opencode-git.ts` — registers all 33 tools
+- Entry: `src/four-opencode-git.ts` — registers all 34 tools
 - Tools: `src/tools/` — one file per tool; analysis tools export execute fns used by git_analyze dispatcher
 - Lib: `src/lib/` — git-utils.ts, gh-utils.ts, gh-reviews.ts, gitlab-utils.ts, forgejo-utils.ts, forgejo-reviews.ts, secrets.ts, plugin-log.ts, debug-logger.ts, diff-parse.ts
 - Tests: `tests/` — bun-native

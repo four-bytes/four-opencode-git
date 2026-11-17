@@ -9,7 +9,7 @@ Git analysis + GitHub/GitLab ops tools for opencode agents.
 "plugin": ["file:///path/to/four-opencode-git/dist/four-opencode-git.js"]
 ```
 
-## Tools (33)
+## Tools (34)
 
 ### Git core (3)
 
@@ -58,10 +58,11 @@ the `remote` line is omitted. Detached HEAD reports the 7-char short OID. Pass
   use it when a repo's issues live somewhere other than its forge. An unrecognised host
   returns `No issue backend for <host>.` as a plain string, not an error.
 
-### GitHub (10)
+### GitHub (11)
 
 - `gh_pr_create`, `gh_pr_comment`, `gh_pr_review`, `gh_pr_status`
 - `gh_issue_list`, `gh_issue_close` (zombie detection)
+- `gh_issue_create` — create an issue; validates labels/assignees first, any unknown one aborts before the single POST
 - `gh_pr_comments` — conversation, review verdicts and inline comments (GraphQL `reviewThreads`), one line each; marks open human threads
 - `gh_branch_cleanup` (dry_run first), `gh_release_info`, `gh_bot_review`
 
