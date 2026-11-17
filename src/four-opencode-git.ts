@@ -13,6 +13,7 @@ import { ghBranchCleanupTool } from './tools/gh-branch-cleanup';
 import { ghReleaseInfoTool } from './tools/gh-release-info';
 import { ghPrCreateTool } from './tools/gh-pr-create';
 import { ghPrCommentTool } from './tools/gh-pr-comment';
+import { ghPrCommentsTool } from './tools/gh-pr-comments';
 import { ghPrReviewTool } from './tools/gh-pr-review';
 import { ghBotReviewTool } from './tools/gh-bot-review';
 import { gitlabMrCreateTool } from './tools/gitlab-mr-create';
@@ -51,6 +52,7 @@ const FourOpencodeGit: Plugin = async (ctx) => {
       gh_release_info: ghReleaseInfoTool,
       gh_pr_create: ghPrCreateTool,
       gh_pr_comment: ghPrCommentTool,
+      gh_pr_comments: ghPrCommentsTool,
       gh_pr_review: ghPrReviewTool,
       gh_bot_review: ghBotReviewTool,
       gitlab_mr_create: gitlabMrCreateTool,
