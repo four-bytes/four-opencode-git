@@ -70,6 +70,22 @@ export function formatGhIssueView(issue: GhIssueView, repo: string): string {
   return lines.join('\n');
 }
 
+/** Fetch + format a single GitHub issue (repo already resolved). */
+export async function getGhIssue(repo: string, issueNum: number, cwd: string): Promise<string> {
+  const rawJson = await runGh(
+    ['issue', 'view', String(issueNum), '--repo', repo, '--json', 'number,title,state,labels,assignees,body,comments,url'],
+    cwd,
+  );
+  let raw: unknown;
+  try {
+    raw = JSON.parse(rawJson);
+  } catch {
+    return `Error parsing gh issue view output. Raw output:\n${rawJson}`;
+  }
+  const issue = normalizeGhIssueView(raw);
+  return formatGhIssueView(issue, repo);
+}
+
 // ────────────────────────────────────────────────────────────────
 // Tool definition
 // ────────────────────────────────────────────────────────────────
@@ -96,30 +112,8 @@ export const ghIssueViewTool = tool({
     try {
       const resolvedRepo = await resolveRepo(repo, cwd);
 
-      const rawJson = await runGh(
-        [
-          'issue',
-          'view',
-          String(issueNum),
-          '--repo',
-          resolvedRepo,
-          '--json',
-          'number,title,state,labels,assignees,body,comments,url',
-        ],
-        cwd
-      );
-
-      let raw: unknown;
-      try {
-        raw = JSON.parse(rawJson);
-      } catch {
-        return `Error parsing gh issue view output. Raw output:\n${rawJson}`;
-      }
-
-      const issue = normalizeGhIssueView(raw);
-
-      logDebugEvent('gh_issue_view.done', { issue: issueNum, comments: issue.commentCount });
-      return formatGhIssueView(issue, resolvedRepo);
+      logDebugEvent('gh_issue_view.done', { issue: issueNum });
+      return getGhIssue(resolvedRepo, issueNum, cwd);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       logDebugEvent('gh_issue_view.error', { error: msg });

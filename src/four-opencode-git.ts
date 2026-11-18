@@ -27,6 +27,9 @@ import { gitlabMrStatusTool } from './tools/gitlab-mr-status';
 import { gitlabIssueListTool } from './tools/gitlab-issue-list';
 import { issueListTool } from './tools/issue-list';
 import { forgeIssueCreateTool } from './tools/forge-issue-create';
+import { forgeIssueGetTool } from './tools/forge-issue-get';
+import { forgeIssueCommentListTool } from './tools/forge-issue-comment-list';
+import { forgeIssueCommentCreateTool } from './tools/forge-issue-comment-create';
 import { forgejoIssueListTool } from './tools/forgejo-issue-list';
 import { forgejoIssueViewTool } from './tools/forgejo-issue-view';
 import { forgejoIssueCloseTool } from './tools/forgejo-issue-close';
@@ -72,6 +75,9 @@ const FourOpencodeGit: Plugin = async (ctx) => {
       gitlab_issue_list: gitlabIssueListTool,
       issue_list: issueListTool,
       forge_issue_create: forgeIssueCreateTool,
+      forge_issue_get: forgeIssueGetTool,
+      forge_issue_comment_list: forgeIssueCommentListTool,
+      forge_issue_comment_create: forgeIssueCommentCreateTool,
       forgejo_issue_list: forgejoIssueListTool,
       forgejo_issue_view: forgejoIssueViewTool,
       forgejo_issue_close: forgejoIssueCloseTool,
