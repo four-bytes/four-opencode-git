@@ -170,6 +170,35 @@ function formatPrStatus(pr: PrView, repo: string): string {
 }
 
 // ────────────────────────────────────────────────────────────────
+// Core — reusable, takes an already-resolved repo
+// ────────────────────────────────────────────────────────────────
+
+/** Fetch and format a GitHub PR status via `gh pr view --json`. */
+export async function getGhPrStatus(repo: string, prNum: number, cwd: string): Promise<string> {
+  const ghArgs: string[] = [
+    'pr',
+    'view',
+    String(prNum),
+    '--repo',
+    repo,
+    '--json',
+    'number,title,state,mergeable,mergeStateStatus,reviews,statusCheckRollup,url,baseRefName,headRefName',
+  ];
+
+  const rawJson = await runGh(ghArgs, cwd);
+
+  let pr: PrView;
+  try {
+    pr = JSON.parse(rawJson) as PrView;
+  } catch {
+    return `Error parsing gh pr view output. Raw output:\n${rawJson}`;
+  }
+
+  logDebugEvent('gh_pr_status.done', { pr: prNum, mergeable: pr.mergeable });
+  return formatPrStatus(pr, repo);
+}
+
+// ────────────────────────────────────────────────────────────────
 // Tool definition
 // ────────────────────────────────────────────────────────────────
 
@@ -193,28 +222,7 @@ export const ghPrStatusTool = tool({
 
     try {
       const resolvedRepo = await resolveRepo(repo, cwd);
-
-      const ghArgs: string[] = [
-        'pr',
-        'view',
-        String(prNum),
-        '--repo',
-        resolvedRepo,
-        '--json',
-        'number,title,state,mergeable,mergeStateStatus,reviews,statusCheckRollup,url,baseRefName,headRefName',
-      ];
-
-      const rawJson = await runGh(ghArgs, cwd);
-
-      let pr: PrView;
-      try {
-        pr = JSON.parse(rawJson) as PrView;
-      } catch {
-        return `Error parsing gh pr view output. Raw output:\n${rawJson}`;
-      }
-
-      logDebugEvent('gh_pr_status.done', { pr: prNum, mergeable: pr.mergeable });
-      return formatPrStatus(pr, resolvedRepo);
+      return await getGhPrStatus(resolvedRepo, prNum, cwd);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       logDebugEvent('gh_pr_status.error', { error: msg });

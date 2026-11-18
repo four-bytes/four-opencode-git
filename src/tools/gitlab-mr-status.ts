@@ -5,6 +5,36 @@ import { tool } from '@opencode-ai/plugin';
 import { getGitLabProjectId, gitlabApi } from '../lib/gitlab-utils';
 import { logDebugEvent } from '../lib/debug-logger';
 
+// ────────────────────────────────────────────────────────────────
+// Core — reusable, takes an already-resolved project id
+// ────────────────────────────────────────────────────────────────
+
+/** Single-MR status. `projectId` is the url-encoded group/project, `iid` the `!number`. */
+export async function getGitlabMrStatus(
+  projectId: string,
+  iid: number,
+  cwd: string
+): Promise<string> {
+  const result = await gitlabApi(`projects/${projectId}/merge_requests/${iid}`);
+
+  if (!result.ok) return `Failed to get MR: ${result.error}`;
+
+  const mr = result.data;
+  const lines = [
+    `MR !${mr.iid}: ${mr.title}`,
+    `  State:     ${mr.state}`,
+    `  Mergeable: ${mr.merge_status}`,
+    `  Source:    ${mr.source_branch} → ${mr.target_branch}`,
+    `  Author:    ${mr.author?.name || 'unknown'}`,
+    mr.web_url ? `  URL:       ${mr.web_url}` : '',
+  ];
+  return lines.filter(Boolean).join('\n');
+}
+
+// ────────────────────────────────────────────────────────────────
+// Tool definition
+// ────────────────────────────────────────────────────────────────
+
 export const gitlabMrStatusTool = tool({
   description: 'Check GitLab merge request status — state, mergeability, approvals, CI pipeline.',
 
@@ -26,20 +56,7 @@ export const gitlabMrStatusTool = tool({
 
       if (mrIid) {
         // Single MR
-        const result = await gitlabApi(`projects/${projectId}/merge_requests/${mrIid}`);
-
-        if (!result.ok) return `Failed to get MR: ${result.error}`;
-
-        const mr = result.data;
-        const lines = [
-          `MR !${mr.iid}: ${mr.title}`,
-          `  State:     ${mr.state}`,
-          `  Mergeable: ${mr.merge_status}`,
-          `  Source:    ${mr.source_branch} → ${mr.target_branch}`,
-          `  Author:    ${mr.author?.name || 'unknown'}`,
-          mr.web_url ? `  URL:       ${mr.web_url}` : '',
-        ];
-        return lines.filter(Boolean).join('\n');
+        return await getGitlabMrStatus(projectId, mrIid, ctx.directory);
       } else {
         // List open MRs
         const result = await gitlabApi(

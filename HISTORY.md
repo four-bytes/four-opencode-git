@@ -1,5 +1,9 @@
 # HISTORY — four-opencode-git
 
+## 0.7.2 — forge_pr_create + forge_pr_status (#62, part of #55)
+- New `forge_pr_create` / `forge_pr_status`: unified PR/MR create + status across GitHub/Forgejo/GitLab; `head`↔`source_branch`, `base`↔`target_branch`, `pr`↔`iid` mapped internally.
+- Extracted reusable cores `createGhPr`/`createForgejoPr`/`createGitlabMr` + `getGhPrStatus`/`getForgejoPrStatus`/`getGitlabMrStatus` (existing tools delegate, no behavior change).
+
 ## 0.7.1 — forge_issue_get + issue-comment list/create (#60, part of #55)
 - New `forge_issue_get`: unified single-issue view (full body) across GitHub/Forgejo with auto-detection.
 - New `forge_issue_comment_list` / `forge_issue_comment_create`: unified comment list/create; added the missing GitHub comment implementation (`gh api`, bounded `per_page=100`); Forgejo via existing cores.

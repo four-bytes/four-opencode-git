@@ -5,6 +5,47 @@ import { tool } from '@opencode-ai/plugin';
 import { getGitLabProjectId, gitlabApi } from '../lib/gitlab-utils';
 import { logDebugEvent } from '../lib/debug-logger';
 
+// ────────────────────────────────────────────────────────────────
+// Core — reusable, takes an already-resolved project id
+// ────────────────────────────────────────────────────────────────
+
+export interface GitlabMrCreateInput {
+  title: string;
+  body: string;
+  sourceBranch?: string;
+  targetBranch?: string;
+}
+
+/** Create a GitLab MR via the REST API. `projectId` is the url-encoded group/project. */
+export async function createGitlabMr(
+  projectId: string,
+  input: GitlabMrCreateInput,
+  cwd: string
+): Promise<string> {
+  if (!input.sourceBranch) {
+    return 'Error: source_branch (head) is required for GitLab MR creation.';
+  }
+
+  const result = await gitlabApi(`projects/${projectId}/merge_requests`, 'POST', {
+    title: input.title,
+    source_branch: input.sourceBranch,
+    target_branch: input.targetBranch || 'main',
+    description: input.body,
+  });
+
+  if (!result.ok) {
+    return `Failed to create MR: ${result.error}`;
+  }
+
+  const mr = result.data;
+  logDebugEvent('gitlab_mr_create.success', { iid: mr.iid, url: mr.web_url });
+  return `MR !${mr.iid} created: ${mr.title}\n   ${mr.web_url}`;
+}
+
+// ────────────────────────────────────────────────────────────────
+// Tool definition
+// ────────────────────────────────────────────────────────────────
+
 export const gitlabMrCreateTool = tool({
   description: 'Create a GitLab merge request. Uses GITLAB_TOKEN for authentication.',
 
@@ -24,20 +65,16 @@ export const gitlabMrCreateTool = tool({
       const projectId = await getGitLabProjectId(ctx.directory);
       if (!projectId) return 'Could not determine GitLab project ID from git remote.';
 
-      const result = await gitlabApi(`projects/${projectId}/merge_requests`, 'POST', {
-        title,
-        source_branch: sourceBranch,
-        target_branch: targetBranch || 'main',
-        description: description || '',
-      });
-
-      if (!result.ok) {
-        return `Failed to create MR: ${result.error}`;
-      }
-
-      const mr = result.data;
-      logDebugEvent('gitlab_mr_create.success', { iid: mr.iid, url: mr.web_url });
-      return `MR !${mr.iid} created: ${mr.title}\n   ${mr.web_url}`;
+      return await createGitlabMr(
+        projectId,
+        {
+          title,
+          body: description || '',
+          sourceBranch,
+          targetBranch,
+        },
+        ctx.directory
+      );
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       logDebugEvent('gitlab_mr_create.error', { error: msg });
