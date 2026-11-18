@@ -3,26 +3,31 @@
 
 import { tool } from '@opencode-ai/plugin';
 import { runGh, resolveRepo } from '../lib/gh-utils';
-import { runGit } from '../lib/git-utils';
 import { getGitLabConfig, getGitLabProjectId, gitlabApi } from '../lib/gitlab-utils';
+import { forgejoApi, forgejoVars, getForgejoConfig, getForgejoRepo } from '../lib/forgejo-utils';
 import {
-  forgejoApi,
-  forgejoVars,
-  getForgejoConfig,
-  getForgejoRepo,
-  isForgejoHost,
-  remoteHostname,
-} from '../lib/forgejo-utils';
+  BACKENDS,
+  getRemoteUrl,
+  noBackendMessage,
+  resolveBackend,
+  type Backend,
+} from '../lib/forge-resolver';
 import { normalizeGitLabIssues } from './gitlab-issue-list';
 import { normalizeForgejoIssueListItems } from './forgejo-issue-list';
 import { logDebugEvent } from '../lib/debug-logger';
 
+// Existing imports of the detection helpers from this module keep working.
+export {
+  BACKENDS,
+  type Backend,
+  detectBackend,
+  resolveBackend,
+  noBackendMessage,
+} from '../lib/forge-resolver';
+
 // ────────────────────────────────────────────────────────────────
 // Types
 // ────────────────────────────────────────────────────────────────
-
-const BACKENDS = ['github', 'gitlab', 'forgejo'] as const;
-export type Backend = (typeof BACKENDS)[number];
 
 /** Forge-agnostic issue shape. Every backend is normalized to this. */
 export interface CommonIssue {
@@ -39,71 +44,6 @@ export interface IssueQuery {
   assignee?: string;
   limit: number;
   search?: string;
-}
-
-// ────────────────────────────────────────────────────────────────
-// Backend detection (pure)
-// ────────────────────────────────────────────────────────────────
-
-/** Reduce a URL/host string to a lowercase hostname, tolerating a missing scheme. */
-function toHostname(value: string | null | undefined): string | null {
-  if (!value) return null;
-  const withScheme = value.includes('://') ? value : `https://${value}`;
-  try {
-    return new URL(withScheme).hostname.toLowerCase();
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Detect the issue backend from the origin remote and environment.
- *
- * Precedence (first match wins):
- *   1. remote host contains `github.com`            → github
- *   2. remote host is a configured Forgejo host (`FORGEJO_HOST[_<NAME>]`) → forgejo.
- *      A token alone never selects Forgejo — it must not reach an unknown host.
- *   3. `GITLAB_TOKEN` set, remote host equals `GITLAB_HOST`, or remote host is
- *      `gitlab.com`                                 → gitlab
- *   4. otherwise                                    → null
- *
- * Exported for testing without a repo or network.
- */
-export function detectBackend(
-  remoteUrl: string | null,
-  env: Record<string, string | undefined>
-): Backend | null {
-  const host = remoteHostname(remoteUrl);
-
-  if (host && (host === 'github.com' || host.endsWith('.github.com'))) return 'github';
-
-  if (isForgejoHost(remoteUrl, env)) return 'forgejo';
-
-  const gitlabHost = toHostname(env.GITLAB_HOST);
-  if (
-    env.GITLAB_TOKEN ||
-    (gitlabHost && host && gitlabHost === host) ||
-    host === 'gitlab.com'
-  ) {
-    return 'gitlab';
-  }
-
-  return null;
-}
-
-/** Apply an explicit `backend` override, else fall back to detection. */
-export function resolveBackend(
-  remoteUrl: string | null,
-  env: Record<string, string | undefined>,
-  override?: Backend
-): Backend | null {
-  return override ?? detectBackend(remoteUrl, env);
-}
-
-/** One-line "no backend" message naming the remote host. */
-export function noBackendMessage(remoteUrl: string | null): string {
-  const host = remoteHostname(remoteUrl) ?? 'origin remote';
-  return `No issue backend for ${host}.`;
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -173,15 +113,6 @@ export function formatIssueList(issues: CommonIssue[], state = 'open'): string {
 // ────────────────────────────────────────────────────────────────
 // Backend fetches
 // ────────────────────────────────────────────────────────────────
-/** Read the origin remote URL, or null when it cannot be resolved. */
-async function getRemoteUrl(cwd: string): Promise<string | null> {
-  try {
-    const url = await runGit(['remote', 'get-url', 'origin'], cwd);
-    return url || null;
-  } catch {
-    return null;
-  }
-}
 
 async function fetchGitHubIssues(query: IssueQuery, cwd: string): Promise<CommonIssue[]> {
   const repo = await resolveRepo(undefined, cwd);

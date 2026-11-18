@@ -27,6 +27,47 @@ export function formatForgejoIssueCreated(raw: any, labels: string[]): string {
 }
 
 // ────────────────────────────────────────────────────────────────
+// Core — reusable, takes an already-resolved repo
+// ────────────────────────────────────────────────────────────────
+
+export interface ForgejoIssueCreateInput {
+  title: string;
+  body: string;
+  labels: string[];
+}
+
+/** Create a Forgejo issue after resolving label ids. Returns the formatted output plus the created issue number; never throws, never retries the POST. */
+export async function createForgejoIssue(
+  repo: string,
+  input: ForgejoIssueCreateInput,
+  cwd: string,
+): Promise<{ output: string; number: number | undefined }> {
+  const cfg = getForgejoConfig(cwd);
+  if (!cfg.ok) return { output: cfg.message, number: undefined };
+  const config = cfg.config;
+
+  const resolved = await resolveLabelIds(repo, input.labels, config);
+  if (resolved.error) return { output: `Error reading labels: ${resolved.error}`, number: undefined };
+  if (resolved.unknown.length > 0) {
+    return { output: formatUnknownLabels(resolved.unknown, repo), number: undefined };
+  }
+
+  const payload: Record<string, unknown> = { title: input.title, body: input.body };
+  if (resolved.ids.length > 0) payload.labels = resolved.ids;
+
+  const result = await forgejoApi(`/repos/${repo}/issues`, config, {
+    method: 'POST',
+    body: payload,
+  });
+  if (!result.ok) return { output: `Error creating issue: ${result.error}`, number: undefined };
+
+  return {
+    output: formatForgejoIssueCreated(result.data, input.labels),
+    number: result.data?.number,
+  };
+}
+
+// ────────────────────────────────────────────────────────────────
 // Tool definition
 // ────────────────────────────────────────────────────────────────
 
@@ -54,28 +95,12 @@ export const forgejoIssueCreateTool = tool({
     try {
       if (!title) return 'Error: title must not be empty.';
 
-      const cfg = getForgejoConfig(cwd);
-      if (!cfg.ok) return cfg.message;
-      const config = cfg.config;
-
       const repo = await getForgejoRepo(cwd);
       if (!repo) return 'Could not determine Forgejo repository from origin remote.';
 
-      const resolved = await resolveLabelIds(repo, labelNames, config);
-      if (resolved.error) return `Error reading labels: ${resolved.error}`;
-      if (resolved.unknown.length > 0) return formatUnknownLabels(resolved.unknown, repo);
-
-      const payload: Record<string, unknown> = { title, body };
-      if (resolved.ids.length > 0) payload.labels = resolved.ids;
-
-      const result = await forgejoApi(`/repos/${repo}/issues`, config, {
-        method: 'POST',
-        body: payload,
-      });
-      if (!result.ok) return `Error creating issue: ${result.error}`;
-
-      logDebugEvent('forgejo_issue_create.done', { issue: result.data?.number });
-      return formatForgejoIssueCreated(result.data, labelNames);
+      const res = await createForgejoIssue(repo, { title, body, labels: labelNames }, cwd);
+      logDebugEvent('forgejo_issue_create.done', { issue: res.number });
+      return res.output;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       logDebugEvent('forgejo_issue_create.error', { error: msg });
