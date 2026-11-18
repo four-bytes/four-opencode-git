@@ -81,6 +81,27 @@ function formatForgejoIssueView(issue: ForgejoIssueView, repo: string): string {
   return lines.join('\n');
 }
 
+/** Fetch + format a single Forgejo issue (repo already resolved). */
+export async function getForgejoIssue(repo: string, issueNum: number, cwd: string): Promise<string> {
+  const cfg = getForgejoConfig(cwd);
+  if (!cfg.ok) return cfg.message;
+  const config = cfg.config;
+
+  const result = await forgejoApi(`/repos/${repo}/issues/${issueNum}`, config);
+  if (!result.ok) return `Failed to get issue #${issueNum}: ${result.error}`;
+  const issue = result.data as any;
+
+  let commentCount: number | undefined =
+    typeof issue.comments === 'number' ? issue.comments : undefined;
+  if (commentCount === undefined) {
+    const commentsResult = await forgejoApi(`/repos/${repo}/issues/${issueNum}/comments`, config);
+    commentCount = commentsResult.ok && Array.isArray(commentsResult.data) ? commentsResult.data.length : 0;
+  }
+
+  const normalized = normalizeForgejoIssueView(issue, commentCount);
+  return formatForgejoIssueView(normalized, repo);
+}
+
 // ────────────────────────────────────────────────────────────────
 // Tool definition
 // ────────────────────────────────────────────────────────────────
@@ -100,36 +121,11 @@ export const forgejoIssueViewTool = tool({
     logDebugEvent('forgejo_issue_view.start', { issue: issueNum });
 
     try {
-      const cfg = getForgejoConfig(cwd);
-      if (!cfg.ok) return cfg.message;
-      const config = cfg.config;
-
       const repo = await getForgejoRepo(cwd);
       if (!repo) return 'Could not determine Forgejo repository from origin remote.';
 
-      const result = await forgejoApi(`/repos/${repo}/issues/${issueNum}`, config);
-      if (!result.ok) return `Failed to get issue #${issueNum}: ${result.error}`;
-
-      const issue = result.data as any;
-
-      // Comment count: prefer the `comments` field, fall back to a listing call.
-      let commentCount: number | undefined =
-        typeof issue.comments === 'number' ? issue.comments : undefined;
-      if (commentCount === undefined) {
-        const commentsResult = await forgejoApi(
-          `/repos/${repo}/issues/${issueNum}/comments`,
-          config
-        );
-        commentCount =
-          commentsResult.ok && Array.isArray(commentsResult.data)
-            ? commentsResult.data.length
-            : 0;
-      }
-
-      const normalized = normalizeForgejoIssueView(issue, commentCount);
-
-      logDebugEvent('forgejo_issue_view.done', { issue: issueNum, comments: normalized.comments });
-      return formatForgejoIssueView(normalized, repo);
+      logDebugEvent('forgejo_issue_view.done', { issue: issueNum });
+      return getForgejoIssue(repo, issueNum, cwd);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       logDebugEvent('forgejo_issue_view.error', { error: msg });

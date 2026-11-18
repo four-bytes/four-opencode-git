@@ -1,5 +1,10 @@
 # HISTORY — four-opencode-git
 
+## 0.7.1 — forge_issue_get + issue-comment list/create (#60, part of #55)
+- New `forge_issue_get`: unified single-issue view (full body) across GitHub/Forgejo with auto-detection.
+- New `forge_issue_comment_list` / `forge_issue_comment_create`: unified comment list/create; added the missing GitHub comment implementation (`gh api`, bounded `per_page=100`); Forgejo via existing cores.
+- Extracted reusable cores `getGhIssue`/`getForgejoIssue`/`listForgejoIssueComments`/`createForgejoIssueComment` (existing tools delegate, no behavior change).
+
 ## 0.7.0 — shared forge resolver + forge_issue_create (#58, part of #55)
 - New `src/lib/forge-resolver.ts`: provider detection (`detectBackend`/`resolveBackend`/`noBackendMessage`) moved out of `issue-list.ts` and shared across `forge_*` tools; `resolveForgeContext(cwd, { backend?, repo? })` resolves backend + repo once.
 - New `forge_issue_create`: auto-detects GitHub/Forgejo and dispatches to `createGhIssue` / `createForgejoIssue`; GitLab → "not supported yet"; reports the resolved `[backend]` in the result.

@@ -37,6 +37,15 @@ export function formatForgejoIssueComments(raw: unknown, issue: number, limit: n
   return [header, '', ...lines].join('\n');
 }
 
+/** List comments on a Forgejo issue/PR (repo already resolved). */
+export async function listForgejoIssueComments(repo: string, issueNum: number, limit: number, cwd: string): Promise<string> {
+  const cfg = getForgejoConfig(cwd);
+  if (!cfg.ok) return cfg.message;
+  const result = await forgejoApi(`/repos/${repo}/issues/${issueNum}/comments`, cfg.config);
+  if (!result.ok) return `Error reading comments on #${issueNum}: ${result.error}`;
+  return formatForgejoIssueComments(result.data, issueNum, limit);
+}
+
 // ────────────────────────────────────────────────────────────────
 // Tool definition
 // ────────────────────────────────────────────────────────────────
@@ -61,18 +70,11 @@ export const forgejoIssueCommentsTool = tool({
     logDebugEvent('forgejo_issue_comments.start', { issue: issueNum, limit });
 
     try {
-      const cfg = getForgejoConfig(cwd);
-      if (!cfg.ok) return cfg.message;
-
       const repo = await getForgejoRepo(cwd);
       if (!repo) return 'Could not determine Forgejo repository from origin remote.';
 
-      // This endpoint is not paginated — it returns every comment in one response.
-      const result = await forgejoApi(`/repos/${repo}/issues/${issueNum}/comments`, cfg.config);
-      if (!result.ok) return `Error reading comments on #${issueNum}: ${result.error}`;
-
       logDebugEvent('forgejo_issue_comments.done', { issue: issueNum });
-      return formatForgejoIssueComments(result.data, issueNum, limit);
+      return listForgejoIssueComments(repo, issueNum, limit, cwd);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       logDebugEvent('forgejo_issue_comments.error', { error: msg });
