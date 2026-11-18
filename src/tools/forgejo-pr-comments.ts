@@ -74,6 +74,39 @@ export function formatForgejoPrComments(
   ].join('\n');
 }
 
+// ────────────────────────────────────────────────────────────────
+// Core — reusable, takes an already-resolved repo
+// ────────────────────────────────────────────────────────────────
+
+/** Read + format a Forgejo PR's conversation, review verdicts and inline comments. */
+export async function getForgejoPrComments(
+  repo: string,
+  pr: number,
+  limit: number,
+  cwd: string
+): Promise<string> {
+  const cfg = getForgejoConfig(cwd);
+  if (!cfg.ok) return cfg.message;
+  const config = cfg.config;
+
+  const view = await forgejoApi(`/repos/${repo}/pulls/${pr}`, config);
+  if (!view.ok) return `Failed to get PR !${pr}: ${view.error}`;
+
+  // Conversation comments live on the issue side of the PR (not paginated).
+  const conversation = await forgejoApi(`/repos/${repo}/issues/${pr}/comments`, config);
+  if (!conversation.ok) return `Error reading comments on !${pr}: ${conversation.error}`;
+
+  const summary = await fetchReviewSummary(repo, pr, view.data?.user?.login ?? '', config);
+  if (!summary) return `Error reading reviews on !${pr}.`;
+
+  logDebugEvent('forgejo_pr_comments.done', { pr, open: summary.openHumanThreads.length });
+  return formatForgejoPrComments(pr, conversation.data, summary, limit);
+}
+
+// ────────────────────────────────────────────────────────────────
+// Tool definition
+// ────────────────────────────────────────────────────────────────
+
 export const forgejoPrCommentsTool = tool({
   description:
     'Read a Forgejo PR\'s conversation, review verdicts and inline review comments — one line each, time-ordered — and report open human threads (unresolved inline conversations or requested changes by someone other than the author). An open human thread blocks forgejo_pr_merge; bot findings never do. A reply does not resolve a thread — it is resolved in the Forgejo UI.',
@@ -96,23 +129,11 @@ export const forgejoPrCommentsTool = tool({
     try {
       const cfg = getForgejoConfig(cwd);
       if (!cfg.ok) return cfg.message;
-      const config = cfg.config;
 
       const repo = await getForgejoRepo(cwd);
       if (!repo) return 'Could not determine Forgejo repository from origin remote.';
 
-      const view = await forgejoApi(`/repos/${repo}/pulls/${n}`, config);
-      if (!view.ok) return `Failed to get PR !${n}: ${view.error}`;
-
-      // Conversation comments live on the issue side of the PR (not paginated).
-      const conversation = await forgejoApi(`/repos/${repo}/issues/${n}/comments`, config);
-      if (!conversation.ok) return `Error reading comments on !${n}: ${conversation.error}`;
-
-      const summary = await fetchReviewSummary(repo, n, view.data?.user?.login ?? '', config);
-      if (!summary) return `Error reading reviews on !${n}.`;
-
-      logDebugEvent('forgejo_pr_comments.done', { pr: n, open: summary.openHumanThreads.length });
-      return formatForgejoPrComments(n, conversation.data, summary, limit);
+      return await getForgejoPrComments(repo, n, limit, cwd);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       logDebugEvent('forgejo_pr_comments.error', { error: msg });
