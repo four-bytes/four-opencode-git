@@ -24,14 +24,6 @@ export interface GhIssueView {
 // Normalization
 // ────────────────────────────────────────────────────────────────
 
-/** Truncate a body to at most `maxLines` lines, appending a marker. Pure. */
-export function truncateBody(body: string, maxLines = 40): string {
-  if (!body) return '';
-  const lines = body.replace(/\r\n/g, '\n').split('\n');
-  if (lines.length <= maxLines) return lines.join('\n');
-  return [...lines.slice(0, maxLines), `… (${lines.length - maxLines} more lines)`].join('\n');
-}
-
 /**
  * Map `gh issue view --json` output to the normalized shape. Labels and
  * assignees arrive as objects. Pure — exported for testing with fixture JSON.
@@ -69,7 +61,7 @@ export function formatGhIssueView(issue: GhIssueView, repo: string): string {
   lines.push(`  comments   ${issue.commentCount}`);
   if (issue.url) lines.push(`  url        ${issue.url}`);
 
-  const body = truncateBody(issue.body);
+  const body = issue.body;
   if (body) {
     lines.push('');
     lines.push(body);
@@ -84,7 +76,7 @@ export function formatGhIssueView(issue: GhIssueView, repo: string): string {
 
 export const ghIssueViewTool = tool({
   description:
-    'Read a GitHub issue — number, title, state, labels, body (truncated), comment count.',
+    'Read a GitHub issue — number, title, state, labels, body (full), comment count.',
 
   args: {
     issue: tool.schema.number().describe('Issue number to view'),
