@@ -1,5 +1,10 @@
 # HISTORY — four-opencode-git
 
+## 0.7.0 — shared forge resolver + forge_issue_create (#58, part of #55)
+- New `src/lib/forge-resolver.ts`: provider detection (`detectBackend`/`resolveBackend`/`noBackendMessage`) moved out of `issue-list.ts` and shared across `forge_*` tools; `resolveForgeContext(cwd, { backend?, repo? })` resolves backend + repo once.
+- New `forge_issue_create`: auto-detects GitHub/Forgejo and dispatches to `createGhIssue` / `createForgejoIssue`; GitLab → "not supported yet"; reports the resolved `[backend]` in the result.
+- `forgejo-issue-create.ts`: extracted reusable `createForgejoIssue(repo, input, cwd)` core (no behavior change).
+
 ## 0.6.2 — issue_view full body (#56)
 - `gh_issue_view` and `forgejo_issue_view` now return the full issue body instead of truncating
   at 40 / 20 lines; removed the `truncateBody` helper and updated the tool descriptions
