@@ -80,7 +80,7 @@ squash-merge as `Closed`. These tools talk to the Forgejo REST API so state can 
 read back reliably.
 
 - `forgejo_issue_list` — list issues (state/label/assignee filters), one line per issue
-- `forgejo_issue_view` — issue detail: state, labels, body (~20 lines), comment count
+- `forgejo_issue_view` — issue detail: state, labels, full body, comment count
 - `forgejo_issue_create` — create an issue **with labels in one call**; label names are resolved
   to ids first (repo + org labels) and an unknown label aborts before anything is created
 - `forgejo_issue_comment` — comment on an issue or PR; text is a tool argument, no shell

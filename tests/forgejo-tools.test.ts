@@ -9,7 +9,6 @@ import {
 import {
   formatForgejoIssueView,
   normalizeForgejoIssueView,
-  truncateBody,
 } from '../src/tools/forgejo-issue-view';
 import { formatForgejoIssueClose } from '../src/tools/forgejo-issue-close';
 import {
@@ -89,26 +88,8 @@ describe('formatForgejoIssueList', () => {
 });
 
 // ────────────────────────────────────────────────────────────────
-// Unit tests — truncateBody / formatForgejoIssueView
+// Unit tests — formatForgejoIssueView
 // ────────────────────────────────────────────────────────────────
-
-describe('truncateBody', () => {
-  it('returns short bodies unchanged', () => {
-    expect(truncateBody('line1\nline2')).toBe('line1\nline2');
-  });
-
-  it('truncates to 20 lines with a marker', () => {
-    const body = Array.from({ length: 25 }, (_, i) => `line ${i + 1}`).join('\n');
-    const output = truncateBody(body);
-    const lines = output.split('\n');
-    expect(lines).toHaveLength(21);
-    expect(lines[20]).toBe('… (5 more lines)');
-  });
-
-  it('handles empty body', () => {
-    expect(truncateBody('')).toBe('');
-  });
-});
 
 describe('formatForgejoIssueView', () => {
   it('formats full issue detail with a body', () => {
@@ -151,7 +132,7 @@ describe('formatForgejoIssueView', () => {
     expect(output.endsWith('comments   0')).toBe(true);
   });
 
-  it('truncates a long body in the rendered output', () => {
+  it('renders a long body in full without truncation', () => {
     const issue = {
       number: 10,
       title: 'Long body',
@@ -162,7 +143,8 @@ describe('formatForgejoIssueView', () => {
       comments: 0,
     };
     const output = formatForgejoIssueView(issue, 'acme/widgets');
-    expect(output).toContain('… (10 more lines)');
+    expect(output).toContain('line 30');
+    expect(output).not.toContain('more lines');
   });
 });
 

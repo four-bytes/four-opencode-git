@@ -1,5 +1,9 @@
 # HISTORY — four-opencode-git
 
+## 0.6.2 — issue_view full body (#56)
+- `gh_issue_view` and `forgejo_issue_view` now return the full issue body instead of truncating
+  at 40 / 20 lines; removed the `truncateBody` helper and updated the tool descriptions
+
 ## 0.6.0 — Forgejo repos: list, create, archive (#38)
 - **`forgejo_repo_list`**: repositories one line each (`[private]`/`[public]`, `[archived]`,
   description); lists the authenticated user's repos or an org's (`org`), `limit` after

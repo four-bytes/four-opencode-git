@@ -61,14 +61,6 @@ export function normalizeForgejoIssueView(
 // Output formatting
 // ────────────────────────────────────────────────────────────────
 
-/** Truncate a body to at most `maxLines` lines, appending a marker. Exported for testing. */
-function truncateBody(body: string, maxLines = 20): string {
-  if (!body) return '';
-  const lines = body.replace(/\r\n/g, '\n').split('\n');
-  if (lines.length <= maxLines) return lines.join('\n');
-  return [...lines.slice(0, maxLines), `… (${lines.length - maxLines} more lines)`].join('\n');
-}
-
 /** Pure formatter — exported for testing without a repo or API. */
 function formatForgejoIssueView(issue: ForgejoIssueView, repo: string): string {
   const lines: string[] = [];
@@ -80,7 +72,7 @@ function formatForgejoIssueView(issue: ForgejoIssueView, repo: string): string {
   lines.push(`  comments   ${issue.comments}`);
   if (issue.html_url) lines.push(`  url        ${issue.html_url}`);
 
-  const body = truncateBody(issue.body);
+  const body = issue.body;
   if (body) {
     lines.push('');
     lines.push(body);
@@ -95,7 +87,7 @@ function formatForgejoIssueView(issue: ForgejoIssueView, repo: string): string {
 
 export const forgejoIssueViewTool = tool({
   description:
-    'Read a Forgejo issue — number, title, state, labels, body truncated to ~20 lines, comment count. Forgejo state queries go through this tool — fj has no --json.',
+    'Read a Forgejo issue — number, title, state, labels, body (full), comment count. Forgejo state queries go through this tool — fj has no --json.',
 
   args: {
     issue: tool.schema.number().describe('Issue number (index) to view'),
@@ -146,4 +138,4 @@ export const forgejoIssueViewTool = tool({
   },
 });
 
-export { formatForgejoIssueView, truncateBody };
+export { formatForgejoIssueView };

@@ -50,7 +50,7 @@ returns `No issue backend for <host>.` as a plain string.
 
 ### Forgejo (14 tools)
 - `forgejo_issue_list` — list issues (state/label/assignee), one line per issue
-- `forgejo_issue_view` — issue detail, body truncated to ~20 lines, comment count
+- `forgejo_issue_view` — issue detail, full body, comment count
 - `forgejo_issue_create` — create issue with labels in one call; unknown label → nothing created
 - `forgejo_issue_comment` — comment on issue/PR (API body argument, no shell)
 - `forgejo_issue_comments` — comments one line each, newest N
