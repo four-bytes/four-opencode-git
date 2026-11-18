@@ -85,6 +85,40 @@ export function formatGhPrComments(
   ].join('\n');
 }
 
+// ────────────────────────────────────────────────────────────────
+// Core — reusable, takes an already-resolved repo
+// ────────────────────────────────────────────────────────────────
+
+/** Read + format a GitHub PR's conversation, review verdicts and inline comments. */
+export async function getGhPrComments(
+  repo: string,
+  pr: number,
+  limit: number,
+  cwd: string
+): Promise<string> {
+  const prAuthor = (
+    await runGh(
+      ['pr', 'view', String(pr), '-R', repo, '--json', 'author', '--jq', '.author.login'],
+      cwd
+    )
+  ).trim();
+
+  // Conversation comments live on the issue side of the PR (not paginated).
+  const conversation = JSON.parse(
+    await runGh(['api', `repos/${repo}/issues/${pr}/comments`], cwd)
+  );
+
+  const summary = await fetchGhReviewSummary(repo, pr, prAuthor, cwd);
+  if (!summary) return `Error reading reviews on PR #${pr}.`;
+
+  logDebugEvent('gh_pr_comments.done', { pr, open: summary.openHumanThreads.length });
+  return formatGhPrComments(pr, conversation, summary, limit);
+}
+
+// ────────────────────────────────────────────────────────────────
+// Tool definition
+// ────────────────────────────────────────────────────────────────
+
 export const ghPrCommentsTool = tool({
   description:
     "Read a GitHub PR's conversation, review verdicts and inline review comments — one line each, time-ordered — and report open human threads (unresolved inline conversations or changes requested by someone other than the author). An open human thread blocks merge; bot findings never do. A reply does not resolve a thread — it is resolved in the GitHub UI.",
@@ -110,24 +144,7 @@ export const ghPrCommentsTool = tool({
 
     try {
       const resolvedRepo = await resolveRepo(args.repo, cwd);
-
-      const prAuthor = (
-        await runGh(
-          ['pr', 'view', String(n), '-R', resolvedRepo, '--json', 'author', '--jq', '.author.login'],
-          cwd
-        )
-      ).trim();
-
-      // Conversation comments live on the issue side of the PR (not paginated).
-      const conversation = JSON.parse(
-        await runGh(['api', `repos/${resolvedRepo}/issues/${n}/comments`], cwd)
-      );
-
-      const summary = await fetchGhReviewSummary(resolvedRepo, n, prAuthor, cwd);
-      if (!summary) return `Error reading reviews on PR #${n}.`;
-
-      logDebugEvent('gh_pr_comments.done', { pr: n, open: summary.openHumanThreads.length });
-      return formatGhPrComments(n, conversation, summary, limit);
+      return await getGhPrComments(resolvedRepo, n, limit, cwd);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       logDebugEvent('gh_pr_comments.error', { error: msg });

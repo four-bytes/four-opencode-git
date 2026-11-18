@@ -50,6 +50,77 @@ export function preMergeRefusal(pr: any): string | null {
 // Tool definition
 // ────────────────────────────────────────────────────────────────
 
+// ────────────────────────────────────────────────────────────────
+// Core — reusable, takes an already-resolved repo
+// ────────────────────────────────────────────────────────────────
+
+/** Gate + merge a GitHub PR via the gh CLI. gh supports only squash|merge|rebase. */
+export async function mergeGhPr(
+  repo: string,
+  prNum: number,
+  method: string,
+  title: string | undefined,
+  message: string | undefined,
+  deleteBranch: boolean,
+  cwd: string
+): Promise<string> {
+  const rawJson = await runGh(
+    [
+      'pr',
+      'view',
+      String(prNum),
+      '--repo',
+      repo,
+      '--json',
+      'number,title,state,mergeable,mergeStateStatus,url,baseRefName,headRefName,author',
+    ],
+    cwd
+  );
+
+  let pr: PrView;
+  try {
+    pr = JSON.parse(rawJson) as PrView;
+  } catch {
+    return `Error parsing gh pr view output. Raw output:\n${rawJson}`;
+  }
+
+  const refusal = preMergeRefusal(pr);
+  if (refusal) return refusal;
+
+  // An open human thread or requested changes blocks the merge. If the
+  // reviews cannot be read, refuse rather than merge blind.
+  const author = pr?.author?.login ?? '';
+  const summary = await fetchGhReviewSummary(repo, prNum, author, cwd);
+  if (!summary) return `✗ Could not read reviews of PR #${prNum} — not merged.`;
+  if (summary.openHumanThreads.length > 0 || summary.changesRequestedBy.length > 0) {
+    return `✗ PR #${prNum} not merged: ${formatGhReviewLine(summary)}.`;
+  }
+
+  const mergeArgs: string[] = ['pr', 'merge', String(prNum), '--repo', repo, `--${method}`];
+  if (deleteBranch) mergeArgs.push('--delete-branch');
+  // --subject/--body set the merge/squash commit message; a rebase produces no
+  // merge commit, so gh would ignore or reject them.
+  if (method !== 'rebase') {
+    const trimmedTitle = title?.trim();
+    if (trimmedTitle) mergeArgs.push('--subject', trimmedTitle);
+    if (message !== undefined) mergeArgs.push('--body', message);
+  }
+
+  await runGh(mergeArgs, cwd);
+
+  const branchNote = deleteBranch ? ` · branch ${pr.headRefName} deleted on the remote` : '';
+
+  logDebugEvent('gh_pr_merge.done', { pr: prNum, method });
+  return [
+    `✓ PR #${prNum} "${pr.title}" merged via ${method} into ${pr.baseRefName}${branchNote}.`,
+    `  local cleanup: git checkout ${pr.baseRefName} && git pull --ff-only && git branch -D ${pr.headRefName} && git fetch --prune`,
+  ].join('\n');
+}
+
+// ────────────────────────────────────────────────────────────────
+// Tool definition
+// ────────────────────────────────────────────────────────────────
+
 export const ghPrMergeTool = tool({
   description:
     'Merge a GitHub pull request through the gh CLI (default: squash + delete branch). Refuses when the PR is merged, not open, conflicting, blocked by branch protection, or has requested changes / an open human review thread (bot findings never block). A successful merge closes issues referenced with "Closes #N". Local cleanup (checkout base, pull, delete branch) stays with git. Merge only after the local gate decided to.',
@@ -86,59 +157,15 @@ export const ghPrMergeTool = tool({
 
     try {
       const resolvedRepo = await resolveRepo(repo, cwd);
-
-      const rawJson = await runGh(
-        [
-          'pr',
-          'view',
-          String(n),
-          '--repo',
-          resolvedRepo,
-          '--json',
-          'number,title,state,mergeable,mergeStateStatus,url,baseRefName,headRefName,author',
-        ],
+      return await mergeGhPr(
+        resolvedRepo,
+        n,
+        method,
+        args.title as string | undefined,
+        args.message as string | undefined,
+        deleteBranch,
         cwd
       );
-
-      let pr: PrView;
-      try {
-        pr = JSON.parse(rawJson) as PrView;
-      } catch {
-        return `Error parsing gh pr view output. Raw output:\n${rawJson}`;
-      }
-
-      const refusal = preMergeRefusal(pr);
-      if (refusal) return refusal;
-
-      // An open human thread or requested changes blocks the merge. If the
-      // reviews cannot be read, refuse rather than merge blind.
-      const author = pr?.author?.login ?? '';
-      const summary = await fetchGhReviewSummary(resolvedRepo, n, author, cwd);
-      if (!summary) return `✗ Could not read reviews of PR #${n} — not merged.`;
-      if (summary.openHumanThreads.length > 0 || summary.changesRequestedBy.length > 0) {
-        return `✗ PR #${n} not merged: ${formatGhReviewLine(summary)}.`;
-      }
-
-      const mergeArgs: string[] = ['pr', 'merge', String(n), '--repo', resolvedRepo, `--${method}`];
-      if (deleteBranch) mergeArgs.push('--delete-branch');
-      // --subject/--body set the merge/squash commit message; a rebase produces no
-      // merge commit, so gh would ignore or reject them.
-      if (method !== 'rebase') {
-        const title = (args.title as string | undefined)?.trim();
-        if (title) mergeArgs.push('--subject', title);
-        const message = args.message as string | undefined;
-        if (message !== undefined) mergeArgs.push('--body', message);
-      }
-
-      await runGh(mergeArgs, cwd);
-
-      const branchNote = deleteBranch ? ` · branch ${pr.headRefName} deleted on the remote` : '';
-
-      logDebugEvent('gh_pr_merge.done', { pr: n, method });
-      return [
-        `✓ PR #${n} "${pr.title}" merged via ${method} into ${pr.baseRefName}${branchNote}.`,
-        `  local cleanup: git checkout ${pr.baseRefName} && git pull --ff-only && git branch -D ${pr.headRefName} && git fetch --prune`,
-      ].join('\n');
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       logDebugEvent('gh_pr_merge.error', { error: msg });

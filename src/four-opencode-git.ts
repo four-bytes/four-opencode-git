@@ -32,6 +32,9 @@ import { forgeIssueCommentListTool } from './tools/forge-issue-comment-list';
 import { forgeIssueCommentCreateTool } from './tools/forge-issue-comment-create';
 import { forgePrCreateTool } from './tools/forge-pr-create';
 import { forgePrStatusTool } from './tools/forge-pr-status';
+import { forgePrCommentsTool } from './tools/forge-pr-comments';
+import { forgePrReviewTool } from './tools/forge-pr-review';
+import { forgePrMergeTool } from './tools/forge-pr-merge';
 import { forgejoIssueListTool } from './tools/forgejo-issue-list';
 import { forgejoIssueViewTool } from './tools/forgejo-issue-view';
 import { forgejoIssueCloseTool } from './tools/forgejo-issue-close';
@@ -82,6 +85,9 @@ const FourOpencodeGit: Plugin = async (ctx) => {
       forge_issue_comment_create: forgeIssueCommentCreateTool,
       forge_pr_create: forgePrCreateTool,
       forge_pr_status: forgePrStatusTool,
+      forge_pr_comments: forgePrCommentsTool,
+      forge_pr_review: forgePrReviewTool,
+      forge_pr_merge: forgePrMergeTool,
       forgejo_issue_list: forgejoIssueListTool,
       forgejo_issue_view: forgejoIssueViewTool,
       forgejo_issue_close: forgejoIssueCloseTool,

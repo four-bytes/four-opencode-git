@@ -33,6 +33,65 @@ export function formatMergeError(n: number, method: Method, status: number, erro
   return `✗ Merge of !${n} failed (HTTP ${status}${detail}).`;
 }
 
+// ────────────────────────────────────────────────────────────────
+// Core — reusable, takes an already-resolved repo
+// ────────────────────────────────────────────────────────────────
+
+/** Gate + merge a Forgejo PR via the API, then re-GET for the merge sha. */
+export async function mergeForgejoPr(
+  repo: string,
+  prNum: number,
+  method: string,
+  title: string | undefined,
+  message: string | undefined,
+  deleteBranch: boolean,
+  cwd: string
+): Promise<string> {
+  const cfg = getForgejoConfig(cwd);
+  if (!cfg.ok) return cfg.message;
+  const config = cfg.config;
+
+  const view = await forgejoApi(`/repos/${repo}/pulls/${prNum}`, config);
+  if (!view.ok) return `Failed to get PR !${prNum}: ${view.error}`;
+  const pr = view.data;
+
+  const refusal = preMergeRefusal(pr);
+  if (refusal) return refusal;
+
+  // An open human thread blocks the merge regardless of score. If the
+  // reviews cannot be read, refuse rather than merge blind.
+  const reviews = await fetchReviewSummary(repo, prNum, pr?.user?.login ?? '', config);
+  if (!reviews) return `✗ Could not read reviews of !${prNum} — not merged.`;
+  if (blocksMerge(reviews)) return `✗ PR !${prNum} not merged: ${formatReviewLine(reviews)}.`;
+
+  const result = await forgejoApi(`/repos/${repo}/pulls/${prNum}/merge`, config, {
+    method: 'POST',
+    body: {
+      Do: method,
+      MergeTitleField: title?.trim() || pr.title,
+      MergeMessageField: message ?? pr.body ?? '',
+      delete_branch_after_merge: deleteBranch,
+      head_commit_id: pr?.head?.sha,
+    },
+  });
+  if (!result.ok) return formatMergeError(prNum, method as Method, result.status, result.error);
+
+  // Read back the merge commit — the merge call itself returns no body.
+  const after = await forgejoApi(`/repos/${repo}/pulls/${prNum}`, config);
+  const sha = after.ok && after.data?.merge_commit_sha ? ` (${String(after.data.merge_commit_sha).slice(0, 8)})` : '';
+  const branchNote = deleteBranch ? ` · branch ${pr?.head?.ref} deleted on the remote` : '';
+
+  logDebugEvent('forgejo_pr_merge.done', { pr: prNum });
+  return [
+    `✓ PR !${prNum} merged via ${method}${sha} into ${pr?.base?.ref}${branchNote}.`,
+    `  local cleanup: git checkout ${pr?.base?.ref} && git pull --ff-only && git branch -D ${pr?.head?.ref} && git fetch --prune`,
+  ].join('\n');
+}
+
+// ────────────────────────────────────────────────────────────────
+// Tool definition
+// ────────────────────────────────────────────────────────────────
+
 export const forgejoPrMergeTool = tool({
   description:
     'Merge a Forgejo pull request through the API (default: squash + delete branch). Refuses when the PR is closed, not mergeable, or has an open human review thread / requested changes. A successful API merge marks the PR "merged" and closes issues referenced with "Closes #N". Local cleanup (checkout main, pull, delete branch) stays with git. Merge only after the local gate decided to.',
@@ -65,46 +124,19 @@ export const forgejoPrMergeTool = tool({
     try {
       const cfg = getForgejoConfig(cwd);
       if (!cfg.ok) return cfg.message;
-      const config = cfg.config;
 
       const repo = await getForgejoRepo(cwd);
       if (!repo) return 'Could not determine Forgejo repository from origin remote.';
 
-      const view = await forgejoApi(`/repos/${repo}/pulls/${n}`, config);
-      if (!view.ok) return `Failed to get PR !${n}: ${view.error}`;
-      const pr = view.data;
-
-      const refusal = preMergeRefusal(pr);
-      if (refusal) return refusal;
-
-      // An open human thread blocks the merge regardless of score. If the
-      // reviews cannot be read, refuse rather than merge blind.
-      const reviews = await fetchReviewSummary(repo, n, pr?.user?.login ?? '', config);
-      if (!reviews) return `✗ Could not read reviews of !${n} — not merged.`;
-      if (blocksMerge(reviews)) return `✗ PR !${n} not merged: ${formatReviewLine(reviews)}.`;
-
-      const result = await forgejoApi(`/repos/${repo}/pulls/${n}/merge`, config, {
-        method: 'POST',
-        body: {
-          Do: method,
-          MergeTitleField: (args.title as string | undefined)?.trim() || pr.title,
-          MergeMessageField: (args.message as string | undefined) ?? pr.body ?? '',
-          delete_branch_after_merge: deleteBranch,
-          head_commit_id: pr?.head?.sha,
-        },
-      });
-      if (!result.ok) return formatMergeError(n, method, result.status, result.error);
-
-      // Read back the merge commit — the merge call itself returns no body.
-      const after = await forgejoApi(`/repos/${repo}/pulls/${n}`, config);
-      const sha = after.ok && after.data?.merge_commit_sha ? ` (${String(after.data.merge_commit_sha).slice(0, 8)})` : '';
-      const branchNote = deleteBranch ? ` · branch ${pr?.head?.ref} deleted on the remote` : '';
-
-      logDebugEvent('forgejo_pr_merge.done', { pr: n });
-      return [
-        `✓ PR !${n} merged via ${method}${sha} into ${pr?.base?.ref}${branchNote}.`,
-        `  local cleanup: git checkout ${pr?.base?.ref} && git pull --ff-only && git branch -D ${pr?.head?.ref} && git fetch --prune`,
-      ].join('\n');
+      return await mergeForgejoPr(
+        repo,
+        n,
+        method,
+        args.title as string | undefined,
+        args.message as string | undefined,
+        deleteBranch,
+        cwd
+      );
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       logDebugEvent('forgejo_pr_merge.error', { error: msg });
