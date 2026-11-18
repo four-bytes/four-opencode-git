@@ -105,6 +105,56 @@ export function formatForgejoPrStatus(
 }
 
 // ────────────────────────────────────────────────────────────────
+// Core — reusable, takes an already-resolved repo
+// ────────────────────────────────────────────────────────────────
+
+/** Fetch and format a Forgejo PR status, including the squash-merged-outside-forge git fallback. */
+export async function getForgejoPrStatus(
+  repo: string,
+  prNum: number,
+  cwd: string
+): Promise<string> {
+  const cfg = getForgejoConfig(cwd);
+  if (!cfg.ok) return cfg.message;
+  const config = cfg.config;
+
+  const result = await forgejoApi(`/repos/${repo}/pulls/${prNum}`, config);
+  if (!result.ok) return `Failed to get PR #${prNum}: ${result.error}`;
+
+  const pr = result.data as ForgejoPull;
+
+  // The whole point: `fj pr view` shows a squash-merged PR as closed.
+  // When the forge says closed + not merged, ask git whether the head
+  // commit landed on a remote branch anyway.
+  let mergedVia: MergedVia | null = null;
+  if (pr.state === 'closed' && pr.merged === false && pr.head?.sha) {
+    try {
+      const output = await runGit(['branch', '-r', '--contains', pr.head.sha], cwd);
+      const branch = pickContainingBranch(output.split('\n'), pr.base.ref);
+      if (branch) mergedVia = { sha: pr.head.sha, branch };
+    } catch {
+      // No git repo / git error — fall back to reporting plain `closed`.
+      mergedVia = null;
+    }
+  }
+
+  // Open PRs: report the human threads that would block forgejo_pr_merge.
+  let reviewLine: string | undefined;
+  if (pr.state === 'open') {
+    const summary = await fetchReviewSummary(repo, prNum, pr.user?.login ?? '', config);
+    reviewLine = summary ? formatReviewLine(summary) : 'could not read reviews';
+  }
+
+  logDebugEvent('forgejo_pr_status.done', {
+    pr: prNum,
+    state: pr.state,
+    merged: pr.merged,
+    mergedVia: mergedVia?.branch ?? null,
+  });
+  return formatForgejoPrStatus(pr, mergedVia, reviewLine);
+}
+
+// ────────────────────────────────────────────────────────────────
 // Tool definition
 // ────────────────────────────────────────────────────────────────
 
@@ -123,47 +173,10 @@ export const forgejoPrStatusTool = tool({
     logDebugEvent('forgejo_pr_status.start', { pr: prNum });
 
     try {
-      const cfg = getForgejoConfig(cwd);
-      if (!cfg.ok) return cfg.message;
-      const config = cfg.config;
-
       const repo = await getForgejoRepo(cwd);
       if (!repo) return 'Could not determine Forgejo repository from origin remote.';
 
-      const result = await forgejoApi(`/repos/${repo}/pulls/${prNum}`, config);
-      if (!result.ok) return `Failed to get PR #${prNum}: ${result.error}`;
-
-      const pr = result.data as ForgejoPull;
-
-      // The whole point: `fj pr view` shows a squash-merged PR as closed.
-      // When the forge says closed + not merged, ask git whether the head
-      // commit landed on a remote branch anyway.
-      let mergedVia: MergedVia | null = null;
-      if (pr.state === 'closed' && pr.merged === false && pr.head?.sha) {
-        try {
-          const output = await runGit(['branch', '-r', '--contains', pr.head.sha], cwd);
-          const branch = pickContainingBranch(output.split('\n'), pr.base.ref);
-          if (branch) mergedVia = { sha: pr.head.sha, branch };
-        } catch {
-          // No git repo / git error — fall back to reporting plain `closed`.
-          mergedVia = null;
-        }
-      }
-
-      // Open PRs: report the human threads that would block forgejo_pr_merge.
-      let reviewLine: string | undefined;
-      if (pr.state === 'open') {
-        const summary = await fetchReviewSummary(repo, prNum, pr.user?.login ?? '', config);
-        reviewLine = summary ? formatReviewLine(summary) : 'could not read reviews';
-      }
-
-      logDebugEvent('forgejo_pr_status.done', {
-        pr: prNum,
-        state: pr.state,
-        merged: pr.merged,
-        mergedVia: mergedVia?.branch ?? null,
-      });
-      return formatForgejoPrStatus(pr, mergedVia, reviewLine);
+      return await getForgejoPrStatus(repo, prNum, cwd);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       logDebugEvent('forgejo_pr_status.error', { error: msg });

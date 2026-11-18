@@ -5,6 +5,41 @@ import { tool } from '@opencode-ai/plugin';
 import { runGh, resolveRepo } from '../lib/gh-utils';
 import { logDebugEvent } from '../lib/debug-logger';
 
+// ────────────────────────────────────────────────────────────────
+// Core — reusable, takes an already-resolved repo
+// ────────────────────────────────────────────────────────────────
+
+export interface GhPrCreateInput {
+  title: string;
+  body: string;
+  head?: string;
+  base?: string;
+  draft?: boolean;
+}
+
+/** Create a GitHub PR via `gh pr create`. Returns the formatted output. */
+export async function createGhPr(
+  repo: string,
+  input: GhPrCreateInput,
+  cwd: string
+): Promise<string> {
+  const repoArgs = ['-R', repo];
+
+  const ghArgs = ['pr', 'create', ...repoArgs, '--title', input.title];
+  if (input.body) ghArgs.push('--body', input.body);
+  if (input.base) ghArgs.push('--base', input.base);
+  if (input.head) ghArgs.push('--head', input.head);
+  if (input.draft) ghArgs.push('--draft');
+
+  const output = await runGh(ghArgs, cwd);
+  // gh pr create outputs the PR URL on success
+  return `✅ PR created: ${output.trim()}`;
+}
+
+// ────────────────────────────────────────────────────────────────
+// Tool definition
+// ────────────────────────────────────────────────────────────────
+
 export const ghPrCreateTool = tool({
   description: 'Create a GitHub pull request. Saves ~90% tokens vs. bash→read→parse.',
 
@@ -27,18 +62,13 @@ export const ghPrCreateTool = tool({
 
     try {
       const resolvedRepo = await resolveRepo(repo, ctx.directory);
-      const repoArgs = ['-R', resolvedRepo];
-
-      const ghArgs = ['pr', 'create', ...repoArgs, '--title', title];
-      if (body) ghArgs.push('--body', body);
-      if (base) ghArgs.push('--base', base);
-      if (head) ghArgs.push('--head', head);
-      if (draft) ghArgs.push('--draft');
-
-      const output = await runGh(ghArgs, ctx.directory);
-      // gh pr create outputs the PR URL on success
+      const output = await createGhPr(
+        resolvedRepo,
+        { title, body: body ?? '', head, base, draft },
+        ctx.directory
+      );
       logDebugEvent('gh_pr_create.success', { title });
-      return `✅ PR created: ${output.trim()}`;
+      return output;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       logDebugEvent('gh_pr_create.error', { error: msg });
