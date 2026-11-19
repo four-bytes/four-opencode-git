@@ -35,6 +35,10 @@ import { forgePrStatusTool } from './tools/forge-pr-status';
 import { forgePrCommentsTool } from './tools/forge-pr-comments';
 import { forgePrReviewTool } from './tools/forge-pr-review';
 import { forgePrMergeTool } from './tools/forge-pr-merge';
+import { forgeLabelListTool } from './tools/forge-label-list';
+import { forgeLabelCreateTool } from './tools/forge-label-create';
+import { forgeLabelApplyTool } from './tools/forge-label-apply';
+import { forgeLabelRemoveTool } from './tools/forge-label-remove';
 import { forgejoIssueListTool } from './tools/forgejo-issue-list';
 import { forgejoIssueViewTool } from './tools/forgejo-issue-view';
 import { forgejoIssueCloseTool } from './tools/forgejo-issue-close';
@@ -88,6 +92,10 @@ const FourOpencodeGit: Plugin = async (ctx) => {
       forge_pr_comments: forgePrCommentsTool,
       forge_pr_review: forgePrReviewTool,
       forge_pr_merge: forgePrMergeTool,
+      forge_label_list: forgeLabelListTool,
+      forge_label_create: forgeLabelCreateTool,
+      forge_label_apply: forgeLabelApplyTool,
+      forge_label_remove: forgeLabelRemoveTool,
       forgejo_issue_list: forgejoIssueListTool,
       forgejo_issue_view: forgejoIssueViewTool,
       forgejo_issue_close: forgejoIssueCloseTool,

@@ -1,5 +1,9 @@
 # HISTORY — four-opencode-git
 
+## 0.7.4 — forge_label_list/create/apply/remove (#66, part of #55)
+- New unified label tools across GitHub/Forgejo/GitLab: list, create, apply (add to issue/PR), remove.
+- Apply/remove resolve label names first and name the valid ones instead of guessing.
+
 ## 0.7.3 — forge_pr_comments + forge_pr_review + forge_pr_merge (#64, part of #55)
 - New `forge_pr_comments` / `forge_pr_review` / `forge_pr_merge`: unified PR conversation/review/merge across GitHub/Forgejo; GitLab → clear "not supported".
 - Merge method enum spans the Forgejo superset; GitHub rejects `rebase-merge`/`fast-forward-only` with a clear message.
