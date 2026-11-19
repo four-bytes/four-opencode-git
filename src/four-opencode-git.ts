@@ -60,8 +60,9 @@ import { setPluginClient } from './lib/plugin-log';
 
 const FourOpencodeGit: Plugin = async (ctx) => {
   setPluginClient(ctx?.client);
-  // Provider-specific tools (gh_*, gitlab_*, forgejo_*) are legacy: off by default,
-  // re-enabled with FOUR_GIT_LEGACY_TOOLS=1. Use the forge_* tools instead.
+  // Provider-specific tools that DUPLICATE forge_* / issue_list are legacy: off by
+  // default, re-enabled with FOUR_GIT_LEGACY_TOOLS=1. Use the forge_* tools instead.
+  // Provider-only tools with no forge_* equivalent stay always-on (see below).
   const legacyEnabled = process.env.FOUR_GIT_LEGACY_TOOLS === '1';
 
   return {
@@ -89,26 +90,32 @@ const FourOpencodeGit: Plugin = async (ctx) => {
       forge_reaction_add: forgeReactionAddTool,
       forge_reaction_list: forgeReactionListTool,
 
-      // ── Legacy profile: provider-specific tools ──
+      // ── Always on: provider-specific tools with no forge_* equivalent ──
+      gh_bot_review: ghBotReviewTool,
+      gh_branch_cleanup: ghBranchCleanupTool,
+      gh_release_info: ghReleaseInfoTool,
+      gh_pr_comment: ghPrCommentTool,
+      gh_pr_close: ghPrCloseTool,
+      gh_issue_edit: ghIssueEditTool,
+      forgejo_repo_list: forgejoRepoListTool,
+      forgejo_repo_create: forgejoRepoCreateTool,
+      forgejo_repo_archive: forgejoRepoArchiveTool,
+      forgejo_pr_close: forgejoPrCloseTool,
+      gitlab_mr_comment: gitlabMrCommentTool,
+
+      // ── Legacy profile: provider-specific duplicates of forge_* / issue_list ──
       ...(legacyEnabled
         ? {
             gh_issue_list: ghIssueListTool,
             gh_issue_close: ghIssueCloseTool,
             gh_issue_create: ghIssueCreateTool,
             gh_pr_status: ghPrStatusTool,
-            gh_branch_cleanup: ghBranchCleanupTool,
-            gh_release_info: ghReleaseInfoTool,
             gh_pr_create: ghPrCreateTool,
-            gh_pr_comment: ghPrCommentTool,
             gh_pr_comments: ghPrCommentsTool,
             gh_pr_review: ghPrReviewTool,
             gh_pr_merge: ghPrMergeTool,
-            gh_pr_close: ghPrCloseTool,
-            gh_issue_edit: ghIssueEditTool,
             gh_issue_view: ghIssueViewTool,
-            gh_bot_review: ghBotReviewTool,
             gitlab_mr_create: gitlabMrCreateTool,
-            gitlab_mr_comment: gitlabMrCommentTool,
             gitlab_mr_status: gitlabMrStatusTool,
             gitlab_issue_list: gitlabIssueListTool,
             forgejo_issue_list: forgejoIssueListTool,
@@ -120,11 +127,7 @@ const FourOpencodeGit: Plugin = async (ctx) => {
             forgejo_pr_status: forgejoPrStatusTool,
             forgejo_pr_create: forgejoPrCreateTool,
             forgejo_pr_merge: forgejoPrMergeTool,
-            forgejo_pr_close: forgejoPrCloseTool,
             forgejo_pr_comments: forgejoPrCommentsTool,
-            forgejo_repo_list: forgejoRepoListTool,
-            forgejo_repo_create: forgejoRepoCreateTool,
-            forgejo_repo_archive: forgejoRepoArchiveTool,
           }
         : {}),
     },
