@@ -77,6 +77,8 @@ returns `No issue backend for <host>.` as a plain string.
 - Forgejo REST API — no `fj` CLI dependency. Tokens per host in `~/.config/four-git/secrets.env`
   (`FORGEJO_HOST_<NAME>` + `FORGEJO_TOKEN_<NAME>`), matched against the origin hostname; never
   written into `process.env`, never sent to another host (`src/lib/secrets.ts`, `forgejo-utils.ts`)
+- Gitea = Forgejo-compatible API (same `FORGEJO_*` host/token vars); `FOUR_GIT_AUTO_DETECT_SELF_HOSTED=1`
+  opts into bounded read-only self-hosted detection on unknown hosts (default off)
 
 ## Loading
 ```jsonc

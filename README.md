@@ -130,6 +130,12 @@ tool says so in one line — check those two first.
 The `forgejo_*` tools (and `issue_list` on a Forgejo remote) talk to the Forgejo REST API
 (`/api/v1`). They need one API token per Forgejo instance. No `fj` / `tea` CLI is required.
 
+Gitea is supported through the same Forgejo-compatible API: point `FORGEJO_HOST_<NAME>` /
+`FORGEJO_TOKEN_<NAME>` at the Gitea instance and it works unchanged. Detection is still
+static by default. Set `FOUR_GIT_AUTO_DETECT_SELF_HOSTED=1` to opt into bounded, read-only,
+credential-free probing of unknown self-hosted hosts (`/api/v1/version` then
+`/api/v4/version`, cached per host). Default is off.
+
 #### 1. Create a token in Forgejo
 
 On your Forgejo instance: avatar → **Settings** → **Applications** → **Generate new token**.
