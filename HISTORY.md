@@ -1,5 +1,8 @@
 # HISTORY — four-opencode-git
 
+## 0.7.5 — forge_reaction_add + forge_reaction_list (#68, part of #55)
+- New unified reaction tools across GitHub/Forgejo (identical content set `+1|-1|laugh|confused|heart|hooray|rocket|eyes`); GitLab → "not supported yet".
+
 ## 0.7.4 — forge_label_list/create/apply/remove (#66, part of #55)
 - New unified label tools across GitHub/Forgejo/GitLab: list, create, apply (add to issue/PR), remove.
 - Apply/remove resolve label names first and name the valid ones instead of guessing.

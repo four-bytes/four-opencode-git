@@ -39,6 +39,8 @@ import { forgeLabelListTool } from './tools/forge-label-list';
 import { forgeLabelCreateTool } from './tools/forge-label-create';
 import { forgeLabelApplyTool } from './tools/forge-label-apply';
 import { forgeLabelRemoveTool } from './tools/forge-label-remove';
+import { forgeReactionAddTool } from './tools/forge-reaction-add';
+import { forgeReactionListTool } from './tools/forge-reaction-list';
 import { forgejoIssueListTool } from './tools/forgejo-issue-list';
 import { forgejoIssueViewTool } from './tools/forgejo-issue-view';
 import { forgejoIssueCloseTool } from './tools/forgejo-issue-close';
@@ -96,6 +98,8 @@ const FourOpencodeGit: Plugin = async (ctx) => {
       forge_label_create: forgeLabelCreateTool,
       forge_label_apply: forgeLabelApplyTool,
       forge_label_remove: forgeLabelRemoveTool,
+      forge_reaction_add: forgeReactionAddTool,
+      forge_reaction_list: forgeReactionListTool,
       forgejo_issue_list: forgejoIssueListTool,
       forgejo_issue_view: forgejoIssueViewTool,
       forgejo_issue_close: forgejoIssueCloseTool,
