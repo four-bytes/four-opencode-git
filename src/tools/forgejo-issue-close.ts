@@ -92,6 +92,102 @@ function formatForgejoIssueClose(params: ForgejoCloseResult): string {
 }
 
 // ────────────────────────────────────────────────────────────────
+// Core — reusable, takes an already-resolved Forgejo repo
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Close a Forgejo issue via the REST API, with an optional comment and a
+ * linked-PR (zombie) check. `repo` is the resolved `owner/repo`.
+ */
+export async function closeForgejoIssue(
+  repo: string,
+  issueNum: number,
+  cwd: string,
+  comment?: string
+): Promise<string> {
+  logDebugEvent('forgejo_issue_close.start', { issue: issueNum, hasComment: !!comment });
+
+  try {
+    const cfg = getForgejoConfig(cwd);
+    if (!cfg.ok) return cfg.message;
+    const config = cfg.config;
+
+    // ── Step 1: Check if issue is already closed ──
+    const viewResult = await forgejoApi(`/repos/${repo}/issues/${issueNum}`, config);
+    if (!viewResult.ok) {
+      return `Error viewing issue #${issueNum}: ${viewResult.error}`;
+    }
+
+    const issue = viewResult.data as { title?: string; state?: string };
+    const title = issue.title ?? '';
+    const state = issue.state ?? '';
+
+    if (state === 'closed') {
+      const output = formatForgejoIssueClose({
+        issue: issueNum,
+        title,
+        alreadyClosed: true,
+        commentPosted: false,
+        closed: false,
+      });
+      logDebugEvent('forgejo_issue_close.done', { issue: issueNum, alreadyClosed: true });
+      return output;
+    }
+
+    // ── Step 2: Post optional comment ──
+    let commentPosted = false;
+    let commentError: string | undefined;
+    if (comment) {
+      const commentResult = await forgejoApi(
+        `/repos/${repo}/issues/${issueNum}/comments`,
+        config,
+        { method: 'POST', body: { body: comment } }
+      );
+      if (commentResult.ok) {
+        commentPosted = true;
+      } else {
+        commentError = commentResult.error;
+      }
+    }
+
+    // ── Step 3: Close the issue ──
+    const closeResult = await forgejoApi(`/repos/${repo}/issues/${issueNum}`, config, {
+      method: 'PATCH',
+      body: { state: 'closed' },
+    });
+
+    // ── Step 4: Zombie check — which PRs reference this issue ──
+    let linkedPulls: LinkedPull[] | undefined;
+    if (closeResult.ok) {
+      const pulls = await forgejoApiAll(
+        `/repos/${repo}/pulls?state=all&sort=recentupdate`,
+        config,
+        LINKED_PULL_SCAN / 50
+      );
+      linkedPulls = pulls.ok ? findLinkedPulls(pulls.data, issueNum) : undefined;
+    }
+
+    const output = formatForgejoIssueClose({
+      issue: issueNum,
+      title,
+      linkedPulls,
+      alreadyClosed: false,
+      commentPosted,
+      closed: closeResult.ok,
+      commentError,
+      closeError: closeResult.ok ? undefined : closeResult.error,
+    });
+
+    logDebugEvent('forgejo_issue_close.done', { issue: issueNum, closed: closeResult.ok });
+    return output;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    logDebugEvent('forgejo_issue_close.error', { error: msg });
+    return `Error closing issue: ${msg}`;
+  }
+}
+
+// ────────────────────────────────────────────────────────────────
 // Tool definition
 // ────────────────────────────────────────────────────────────────
 
@@ -109,84 +205,11 @@ export const forgejoIssueCloseTool = tool({
     const comment = args.comment as string | undefined;
     const cwd = ctx.directory;
 
-    logDebugEvent('forgejo_issue_close.start', { issue: issueNum, hasComment: !!comment });
-
     try {
-      const cfg = getForgejoConfig(cwd);
-      if (!cfg.ok) return cfg.message;
-      const config = cfg.config;
-
       const repo = await getForgejoRepo(cwd);
       if (!repo) return 'Could not determine Forgejo repository from origin remote.';
 
-      // ── Step 1: Check if issue is already closed ──
-      const viewResult = await forgejoApi(`/repos/${repo}/issues/${issueNum}`, config);
-      if (!viewResult.ok) {
-        return `Error viewing issue #${issueNum}: ${viewResult.error}`;
-      }
-
-      const issue = viewResult.data as { title?: string; state?: string };
-      const title = issue.title ?? '';
-      const state = issue.state ?? '';
-
-      if (state === 'closed') {
-        const output = formatForgejoIssueClose({
-          issue: issueNum,
-          title,
-          alreadyClosed: true,
-          commentPosted: false,
-          closed: false,
-        });
-        logDebugEvent('forgejo_issue_close.done', { issue: issueNum, alreadyClosed: true });
-        return output;
-      }
-
-      // ── Step 2: Post optional comment ──
-      let commentPosted = false;
-      let commentError: string | undefined;
-      if (comment) {
-        const commentResult = await forgejoApi(
-          `/repos/${repo}/issues/${issueNum}/comments`,
-          config,
-          { method: 'POST', body: { body: comment } }
-        );
-        if (commentResult.ok) {
-          commentPosted = true;
-        } else {
-          commentError = commentResult.error;
-        }
-      }
-
-      // ── Step 3: Close the issue ──
-      const closeResult = await forgejoApi(`/repos/${repo}/issues/${issueNum}`, config, {
-        method: 'PATCH',
-        body: { state: 'closed' },
-      });
-
-      // ── Step 4: Zombie check — which PRs reference this issue ──
-      let linkedPulls: LinkedPull[] | undefined;
-      if (closeResult.ok) {
-        const pulls = await forgejoApiAll(
-          `/repos/${repo}/pulls?state=all&sort=recentupdate`,
-          config,
-          LINKED_PULL_SCAN / 50
-        );
-        linkedPulls = pulls.ok ? findLinkedPulls(pulls.data, issueNum) : undefined;
-      }
-
-      const output = formatForgejoIssueClose({
-        issue: issueNum,
-        title,
-        linkedPulls,
-        alreadyClosed: false,
-        commentPosted,
-        closed: closeResult.ok,
-        commentError,
-        closeError: closeResult.ok ? undefined : closeResult.error,
-      });
-
-      logDebugEvent('forgejo_issue_close.done', { issue: issueNum, closed: closeResult.ok });
-      return output;
+      return await closeForgejoIssue(repo, issueNum, cwd, comment);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       logDebugEvent('forgejo_issue_close.error', { error: msg });

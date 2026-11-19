@@ -8,6 +8,7 @@
 - Test: `bun test`
 
 ## Tool Stack (34 tools)
+**`forge_*` replaces the provider-specific tools** — `gh_*`/`gitlab_*`/`forgejo_*` are only registered with `FOUR_GIT_LEGACY_TOOLS=1` (default off).
 ### git_analyze — Unified Analysis Dispatcher
 Collapses 7 metrics into 1 tool schema. Pass `metric` arg to route:
 - `curse_score` — rank files by risk (changes × recency × churn)
