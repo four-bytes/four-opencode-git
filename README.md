@@ -9,7 +9,13 @@ Git analysis + GitHub/GitLab ops tools for opencode agents.
 "plugin": ["file:///path/to/four-opencode-git/dist/four-opencode-git.js"]
 ```
 
-## Tools (34)
+## Tools (21 default · 54 with legacy profile)
+
+> **Legacy provider tools:** the provider-specific `gh_*`, `gitlab_*` and `forgejo_*` tools are
+> **off by default**. Set `FOUR_GIT_LEGACY_TOOLS=1` to re-enable them (and restart opencode).
+> Use the forge-agnostic `forge_*` tools instead — they detect GitHub/GitLab/Forgejo from the
+> origin remote. `git_*`, `issue_list` and every `forge_*` tool are always on.
+
 
 ### Git core (3)
 
@@ -58,22 +64,56 @@ the `remote` line is omitted. Detached HEAD reports the 7-char short OID. Pass
   use it when a repo's issues live somewhere other than its forge. An unrecognised host
   returns `No issue backend for <host>.` as a plain string, not an error.
 
-### GitHub (11)
+### Forge-agnostic tools (16)
+
+Every `forge_*` tool detects GitHub, GitLab or Forgejo from `git remote get-url origin`;
+an optional `backend` overrides detection and `repo` overrides the detection target. Where a
+backend is missing, the tool says so in one line instead of guessing.
+
+- `forge_issue_close` — close an issue with an optional comment; GitHub reports zombie issues
+  (merged PR, issue still open), Forgejo reports whether a merged PR references the issue.
+  GitLab → `not supported yet`
+- `forge_issue_create` — create an issue; validates labels/assignees first, any unknown value
+  aborts before anything is created
+- `forge_issue_get` — read one issue: state, labels, full body, comment count
+- `forge_issue_comment_list` — comments one line each (date, author, first line), newest N
+- `forge_issue_comment_create` — post a comment; text is a tool argument sent as JSON, no shell
+- `forge_pr_create` — create a PR (GitHub/Forgejo) or MR (GitLab)
+- `forge_pr_status` — PR/MR state, mergeability and open human review threads
+- `forge_pr_comments` — conversation, review verdicts and inline comments, one line each;
+  marks open human threads
+- `forge_pr_review` — fetch reviews + review comments (Forgejo bundles them into
+  `forge_pr_comments`); GitLab → not supported yet
+- `forge_pr_merge` — merge (default: squash + delete branch); refuses closed/conflicted PRs,
+  blocked merges and open human threads — bot findings never block
+- `forge_label_list` — labels normalized to `name  #color  description`
+- `forge_label_create` — create a label (`color` is six hex digits without `#`)
+- `forge_label_apply` — add labels to an issue/PR; label names are validated first
+- `forge_label_remove` — remove labels from an issue/PR; label names are validated first
+- `forge_reaction_add` — add a reaction (`+1|-1|laugh|confused|heart|hooray|rocket|eyes`)
+- `forge_reaction_list` — reactions as counts, in first-occurrence order
+
+### GitHub — legacy (15)
 
 - `gh_pr_create`, `gh_pr_comment`, `gh_pr_review`, `gh_pr_status`
 - `gh_issue_list`, `gh_issue_close` (zombie detection)
 - `gh_issue_create` — create an issue; validates labels/assignees first, any unknown one aborts before the single POST
 - `gh_pr_comments` — conversation, review verdicts and inline comments (GraphQL `reviewThreads`), one line each; marks open human threads
 - `gh_branch_cleanup` (dry_run first), `gh_release_info`, `gh_bot_review`
+- `gh_issue_view` — issue detail: state, labels, full body, comment count
+- `gh_issue_edit` — edit an issue title/body
+- `gh_pr_close` — close a PR without merging, with an optional comment
+- `gh_pr_merge` — merge through `gh` (default: squash + delete branch); refuses closed,
+  conflicting or blocked PRs and open human review threads
 
-### GitLab (4)
+### GitLab — legacy (4)
 
 - `gitlab_mr_create`, `gitlab_mr_comment`, `gitlab_mr_status`
 - `gitlab_issue_list` — list issues (state/label/assignee/search filters), one line per
   issue; `repo`/`project` optionally override the origin remote. GitLab's `opened` API
   state is mapped from the user-facing `open`
 
-### Forgejo (14)
+### Forgejo — legacy (14)
 
 Forgejo's `fj` CLI has no `--json` and no `--format`, and reports an out-of-forge
 squash-merge as `Closed`. These tools talk to the Forgejo REST API so state can be

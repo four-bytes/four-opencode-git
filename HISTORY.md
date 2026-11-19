@@ -1,5 +1,9 @@
 # HISTORY — four-opencode-git
 
+## 0.8.0 — forge_issue_close + legacy profile (#72, part of #55)
+- New `forge_issue_close` (GitHub/Forgejo; GitLab → "not supported").
+- Provider-specific tools (`gh_*`/`forgejo_*`/`gitlab_*`) are now gated behind `FOUR_GIT_LEGACY_TOOLS=1` (default off); `git_*`, `issue_list`, and `forge_*` are always on.
+
 ## 0.7.6 — Gitea + opt-in self-hosted detection (#70, part of #55)
 - Gitea is supported via the Forgejo-compatible API (documented).
 - New opt-in `FOUR_GIT_AUTO_DETECT_SELF_HOSTED=1` enables bounded, read-only, credential-free detection of self-hosted Gitea/Forgejo/GitLab on unknown hosts (default off).
