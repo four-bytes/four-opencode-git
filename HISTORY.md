@@ -1,5 +1,9 @@
 # HISTORY — four-opencode-git
 
+## 0.7.6 — Gitea + opt-in self-hosted detection (#70, part of #55)
+- Gitea is supported via the Forgejo-compatible API (documented).
+- New opt-in `FOUR_GIT_AUTO_DETECT_SELF_HOSTED=1` enables bounded, read-only, credential-free detection of self-hosted Gitea/Forgejo/GitLab on unknown hosts (default off).
+
 ## 0.7.5 — forge_reaction_add + forge_reaction_list (#68, part of #55)
 - New unified reaction tools across GitHub/Forgejo (identical content set `+1|-1|laugh|confused|heart|hooray|rocket|eyes`); GitLab → "not supported yet".
 

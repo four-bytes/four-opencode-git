@@ -9,7 +9,7 @@ import {
   BACKENDS,
   getRemoteUrl,
   noBackendMessage,
-  resolveBackend,
+  resolveBackendWithSelfHosted,
   type Backend,
 } from '../lib/forge-resolver';
 import { normalizeGitLabIssues } from './gitlab-issue-list';
@@ -240,7 +240,11 @@ export const issueListTool = tool({
       }
 
       const remoteUrl = await getRemoteUrl(cwd);
-      const backend = resolveBackend(remoteUrl, { ...process.env, ...forgejoVars() }, override);
+      const backend = await resolveBackendWithSelfHosted(
+        remoteUrl,
+        { ...process.env, ...forgejoVars() },
+        override
+      );
       if (!backend) {
         return noBackendMessage(remoteUrl);
       }
