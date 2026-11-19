@@ -8,7 +8,7 @@
 - Test: `bun test`
 
 ## Tool Stack (34 tools)
-**`forge_*` replaces the provider-specific tools** — `gh_*`/`gitlab_*`/`forgejo_*` are only registered with `FOUR_GIT_LEGACY_TOOLS=1` (default off).
+**`forge_*` replaces the DUPLICATE provider-specific tools** — only `gh_*`/`gitlab_*`/`forgejo_*` tools that duplicate `forge_*`/`issue_list` are registered with `FOUR_GIT_LEGACY_TOOLS=1` (default off). Provider-only tools with no `forge_*` equivalent (`gh_bot_review`, `gh_branch_cleanup`, `gh_release_info`, `gh_pr_comment`, `gh_pr_close`, `gh_issue_edit`, `forgejo_repo_list`, `forgejo_repo_create`, `forgejo_repo_archive`, `forgejo_pr_close`, `gitlab_mr_comment`) stay always on.
 ### git_analyze — Unified Analysis Dispatcher
 Collapses 7 metrics into 1 tool schema. Pass `metric` arg to route:
 - `curse_score` — rank files by risk (changes × recency × churn)

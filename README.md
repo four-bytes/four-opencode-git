@@ -9,12 +9,16 @@ Git analysis + GitHub/GitLab ops tools for opencode agents.
 "plugin": ["file:///path/to/four-opencode-git/dist/four-opencode-git.js"]
 ```
 
-## Tools (21 default · 54 with legacy profile)
+## Tools (32 default · 54 with legacy profile)
 
-> **Legacy provider tools:** the provider-specific `gh_*`, `gitlab_*` and `forgejo_*` tools are
-> **off by default**. Set `FOUR_GIT_LEGACY_TOOLS=1` to re-enable them (and restart opencode).
-> Use the forge-agnostic `forge_*` tools instead — they detect GitHub/GitLab/Forgejo from the
-> origin remote. `git_*`, `issue_list` and every `forge_*` tool are always on.
+> **Legacy provider tools:** the provider-specific `gh_*`, `gitlab_*` and `forgejo_*` tools that
+> **duplicate** `forge_*` / `issue_list` (issue + PR create/list/view/close/comments/review/merge,
+> status) are **off by default**. Set `FOUR_GIT_LEGACY_TOOLS=1` to re-enable them (and restart
+> opencode). Use the forge-agnostic `forge_*` tools instead — they detect GitHub/GitLab/Forgejo from
+> the origin remote. `git_*`, `issue_list`, every `forge_*` tool and the provider-only tools with no
+> `forge_*` equivalent (`gh_bot_review`, `gh_branch_cleanup`, `gh_release_info`, `gh_pr_comment`,
+> `gh_pr_close`, `gh_issue_edit`, `forgejo_repo_list`, `forgejo_repo_create`, `forgejo_repo_archive`,
+> `forgejo_pr_close`, `gitlab_mr_comment`) are always on.
 
 
 ### Git core (3)
