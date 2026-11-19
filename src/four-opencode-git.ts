@@ -36,6 +36,7 @@ import { forgePrStatusTool } from './tools/forge-pr-status';
 import { forgePrCommentsTool } from './tools/forge-pr-comments';
 import { forgePrReviewTool } from './tools/forge-pr-review';
 import { forgePrMergeTool } from './tools/forge-pr-merge';
+import { forgePrCloseTool } from './tools/forge-pr-close';
 import { forgeLabelListTool } from './tools/forge-label-list';
 import { forgeLabelCreateTool } from './tools/forge-label-create';
 import { forgeLabelApplyTool } from './tools/forge-label-apply';
@@ -83,6 +84,7 @@ const FourOpencodeGit: Plugin = async (ctx) => {
       forge_pr_comments: forgePrCommentsTool,
       forge_pr_review: forgePrReviewTool,
       forge_pr_merge: forgePrMergeTool,
+      forge_pr_close: forgePrCloseTool,
       forge_label_list: forgeLabelListTool,
       forge_label_create: forgeLabelCreateTool,
       forge_label_apply: forgeLabelApplyTool,
@@ -95,12 +97,10 @@ const FourOpencodeGit: Plugin = async (ctx) => {
       gh_branch_cleanup: ghBranchCleanupTool,
       gh_release_info: ghReleaseInfoTool,
       gh_pr_comment: ghPrCommentTool,
-      gh_pr_close: ghPrCloseTool,
       gh_issue_edit: ghIssueEditTool,
       forgejo_repo_list: forgejoRepoListTool,
       forgejo_repo_create: forgejoRepoCreateTool,
       forgejo_repo_archive: forgejoRepoArchiveTool,
-      forgejo_pr_close: forgejoPrCloseTool,
       gitlab_mr_comment: gitlabMrCommentTool,
 
       // ── Legacy profile: provider-specific duplicates of forge_* / issue_list ──
@@ -114,6 +114,7 @@ const FourOpencodeGit: Plugin = async (ctx) => {
             gh_pr_comments: ghPrCommentsTool,
             gh_pr_review: ghPrReviewTool,
             gh_pr_merge: ghPrMergeTool,
+            gh_pr_close: ghPrCloseTool,
             gh_issue_view: ghIssueViewTool,
             gitlab_mr_create: gitlabMrCreateTool,
             gitlab_mr_status: gitlabMrStatusTool,
@@ -127,6 +128,7 @@ const FourOpencodeGit: Plugin = async (ctx) => {
             forgejo_pr_status: forgejoPrStatusTool,
             forgejo_pr_create: forgejoPrCreateTool,
             forgejo_pr_merge: forgejoPrMergeTool,
+            forgejo_pr_close: forgejoPrCloseTool,
             forgejo_pr_comments: forgejoPrCommentsTool,
           }
         : {}),
