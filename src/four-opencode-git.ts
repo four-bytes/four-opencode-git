@@ -58,6 +58,7 @@ import { forgejoRepoListTool } from './tools/forgejo-repo-list';
 import { forgejoRepoCreateTool } from './tools/forgejo-repo-create';
 import { forgejoRepoArchiveTool } from './tools/forgejo-repo-archive';
 import { setPluginClient } from './lib/plugin-log';
+import { IssueSliceLayer } from './layers/issue-slice';
 
 const FourOpencodeGit: Plugin = async (ctx) => {
   setPluginClient(ctx?.client);
@@ -65,8 +66,17 @@ const FourOpencodeGit: Plugin = async (ctx) => {
   // default, re-enabled with FOUR_GIT_LEGACY_TOOLS=1. Use the forge_* tools instead.
   // Provider-only tools with no forge_* equivalent stay always-on (see below).
   const legacyEnabled = process.env.FOUR_GIT_LEGACY_TOOLS === '1';
+  const issueSlice = new IssueSliceLayer();
 
   return {
+    "experimental.chat.system.transform": async (_input, output) => {
+      try {
+        const content = await issueSlice.generate();
+        if (content.content.trim()) output.system.push(content.content);
+      } catch {
+        // non-blocking
+      }
+    },
     tool: {
       // ── Always on: git core, forge-agnostic dispatchers ──
       git_diff: gitDiffTool,
