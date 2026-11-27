@@ -1,11 +1,25 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2025-2026 Four Bytes
 
-import { describe, it, expect } from 'bun:test';
+import { afterAll, beforeAll, describe, it, expect } from 'bun:test';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { forgePrCreateTool } from '../src/tools/forge-pr-create';
 import { forgePrStatusTool } from '../src/tools/forge-pr-status';
 
 const ctx = { directory: '/tmp', worktree: '/tmp', sessionID: 't', messageID: 't', agent: 't' };
+
+/** Keep the tool tests hermetic: never read the developer's real secrets.env. */
+let previousXdg: string | undefined;
+beforeAll(() => {
+  previousXdg = process.env.XDG_CONFIG_HOME;
+  process.env.XDG_CONFIG_HOME = mkdtempSync(join(tmpdir(), 'forge-pr-xdg-'));
+});
+afterAll(() => {
+  if (previousXdg === undefined) delete process.env.XDG_CONFIG_HOME;
+  else process.env.XDG_CONFIG_HOME = previousXdg;
+});
 
 /** Keep the GitLab tests hermetic: no real token, no network. */
 function withoutGitLabToken<T>(fn: () => Promise<T>): Promise<T> {

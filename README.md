@@ -261,7 +261,58 @@ is used as the working directory, never `process.cwd()`.
 
 ### GitLab
 
-`GITLAB_TOKEN` (required) and `GITLAB_HOST` (defaults to `https://gitlab.com`).
+GitLab uses the REST API (`/api/v4`) — no `glab` CLI. A **personal access token** with the
+`api` scope is stored per host in the same machine-wide secrets file as Forgejo:
+`$XDG_CONFIG_HOME/four-git/secrets.env` (fallback `~/.config/four-git/secrets.env`).
+
+One **pair per host**. `<NAME>` is any label you choose (`A-Z`, `0-9`, `_`); it only links
+the host to its token.
+
+```bash
+mkdir -p ~/.config/four-git
+cat > ~/.config/four-git/secrets.env <<'ENV'
+# self-hosted instance
+GITLAB_HOST_NETFORMIC=gitlab.netformic.cloud
+GITLAB_TOKEN_NETFORMIC=paste-token-here
+# a second instance — add as many pairs as you need
+GITLAB_HOST_WORK=gitlab.example.com
+GITLAB_TOKEN_WORK=paste-token-here
+ENV
+chmod 600 ~/.config/four-git/secrets.env
+```
+
+`GITLAB_HOST_<NAME>` accepts `gitlab.example.com`, `https://gitlab.example.com`, or a full
+base with port / subpath such as `https://gitlab.example.com:3000/gitlab`. The file is read
+on every call — no opencode restart needed after editing it.
+
+- The `origin` remote's **hostname** (https or ssh remote, ports ignored) selects exactly one
+  entry. The token is sent **only** to that entry's configured base — never to a host taken
+  from the remote, so a GitHub or unknown repo never receives a GitLab token.
+- Requests never follow a redirect; a moved instance returns a one-line error instead.
+- Values read from the file never enter `process.env`.
+- A project `.env` is **not** read — a cloned repository must not be able to redirect a token.
+- An exported variable overrides the file for the same key.
+- The unlabelled pair `GITLAB_HOST` + `GITLAB_TOKEN` still works as one entry.
+- A bare `GITLAB_TOKEN` without any `GITLAB_HOST[_<NAME>]` is a **gitlab.com-only** default:
+  it is never sent to a self-hosted host.
+
+#### Troubleshooting
+
+| Message | Fix |
+|---|---|
+| `No GitLab token for <host> (set GITLAB_HOST_<NAME>=<host> + GITLAB_TOKEN_<NAME> …)` | Add a pair for that host. The hostname must equal the one in `git remote get-url origin`. |
+| `No GitLab token for <host> (set GITLAB_TOKEN_<NAME>)` | The host is configured but its token line is missing or empty. |
+| `GitLab host <host> configured more than once (…)` | Two names point at the same host — delete one pair. |
+| `GitLab not configured (no origin remote with a host)` | The repo has no `origin`, or its URL has no host. |
+| `HTTP 302 redirect to … not followed — fix GITLAB_HOST` | Set `GITLAB_HOST_<NAME>` to the final URL (e.g. `https://` instead of `http://`, or the new domain). |
+| `HTTP 401` / `HTTP 403` | Token expired, revoked, or missing the `api` scope. |
+
+Warnings that do not fail a call — a group/world-readable secrets file, a
+`GITLAB_TOKEN_<NAME>` without its `GITLAB_HOST_<NAME>`, an unparseable host value — appear
+once in the opencode log (service `four-opencode-git`).
+
+The project (`group/project`) is derived from `git remote get-url origin`; `ctx.directory`
+is used as the working directory, never `process.cwd()`.
 
 ## License
 

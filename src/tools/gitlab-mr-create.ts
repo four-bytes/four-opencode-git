@@ -2,7 +2,7 @@
 // Copyright (c) 2025-2026 Four Bytes
 
 import { tool } from '@opencode-ai/plugin';
-import { getGitLabProjectId, gitlabApi } from '../lib/gitlab-utils';
+import { getGitLabConfig, getGitLabProjectId, gitlabApi } from '../lib/gitlab-utils';
 import { logDebugEvent } from '../lib/debug-logger';
 
 // ────────────────────────────────────────────────────────────────
@@ -26,12 +26,22 @@ export async function createGitlabMr(
     return 'Error: source_branch (head) is required for GitLab MR creation.';
   }
 
-  const result = await gitlabApi(`projects/${projectId}/merge_requests`, 'POST', {
-    title: input.title,
-    source_branch: input.sourceBranch,
-    target_branch: input.targetBranch || 'main',
-    description: input.body,
-  });
+  const cfg = getGitLabConfig(cwd);
+  if (!cfg.ok) return cfg.message;
+
+  const result = await gitlabApi(
+    `projects/${projectId}/merge_requests`,
+    cfg.config,
+    {
+      method: 'POST',
+      body: {
+        title: input.title,
+        source_branch: input.sourceBranch,
+        target_branch: input.targetBranch || 'main',
+        description: input.body,
+      },
+    }
+  );
 
   if (!result.ok) {
     return `Failed to create MR: ${result.error}`;
@@ -47,7 +57,8 @@ export async function createGitlabMr(
 // ────────────────────────────────────────────────────────────────
 
 export const gitlabMrCreateTool = tool({
-  description: 'Create a GitLab merge request. Uses GITLAB_TOKEN for authentication.',
+  description:
+    'Create a GitLab merge request. Authentication comes from GITLAB_HOST_<NAME> + GITLAB_TOKEN_<NAME> in ~/.config/four-git/secrets.env (or the environment).',
 
   args: {
     title: tool.schema.string().describe('MR title'),

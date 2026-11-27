@@ -135,8 +135,8 @@ export const gitlabIssueListTool = tool({
     });
 
     try {
-      const cfg = getGitLabConfig();
-      if (!cfg) return 'GitLab not configured (GITLAB_TOKEN not set)';
+      const cfg = getGitLabConfig(cwd);
+      if (!cfg.ok) return cfg.message;
 
       if (!['open', 'closed', 'all'].includes(state)) {
         return `Error: Invalid state "${state}". Must be "open", "closed", or "all".`;
@@ -157,7 +157,7 @@ export const gitlabIssueListTool = tool({
       if (assignee) params.set('assignee_username', assignee);
       if (search) params.set('search', search);
 
-      const result = await gitlabApi(`projects/${projectId}/issues?${params.toString()}`);
+      const result = await gitlabApi(`projects/${projectId}/issues?${params.toString()}`, cfg.config);
       if (!result.ok) return `Failed to list issues: ${result.error}`;
 
       const normalized = normalizeGitLabIssues(result.data);

@@ -4,7 +4,7 @@
 import { tool } from '@opencode-ai/plugin';
 import { resolveForgeContext, type Backend } from '../lib/forge-resolver';
 import { forgejoApi, getForgejoConfig } from '../lib/forgejo-utils';
-import { gitlabApi } from '../lib/gitlab-utils';
+import { getGitLabConfig, gitlabApi } from '../lib/gitlab-utils';
 import { isValidColor } from '../lib/forge-labels';
 import { runGh } from '../lib/gh-utils';
 import { logDebugEvent } from '../lib/debug-logger';
@@ -57,7 +57,12 @@ export const forgeLabelCreateTool = tool({
         });
         if (!result.ok) return `Error creating label: ${result.error}`;
       } else {
-        const result = await gitlabApi(`projects/${repo}/labels`, 'POST', payload);
+        const cfg = getGitLabConfig(cwd);
+        if (!cfg.ok) return cfg.message;
+        const result = await gitlabApi(`projects/${repo}/labels`, cfg.config, {
+          method: 'POST',
+          body: payload,
+        });
         if (!result.ok) return `Error creating label: ${result.error}`;
       }
 

@@ -4,7 +4,7 @@
 import { tool } from '@opencode-ai/plugin';
 import { resolveForgeContext, type Backend } from '../lib/forge-resolver';
 import { forgejoApi, splitLabels } from '../lib/forgejo-utils';
-import { gitlabApi } from '../lib/gitlab-utils';
+import { getGitLabConfig, gitlabApi } from '../lib/gitlab-utils';
 import { prepareLabels } from '../lib/forge-labels';
 import { runGh } from '../lib/gh-utils';
 import { logDebugEvent } from '../lib/debug-logger';
@@ -50,8 +50,11 @@ export const forgeLabelApplyTool = tool({
         });
         if (!result.ok) return `Error applying labels: ${result.error}`;
       } else {
-        const result = await gitlabApi(`projects/${repo}/issues/${issue}`, 'PUT', {
-          add_labels: names.join(','),
+        const cfg = getGitLabConfig(cwd);
+        if (!cfg.ok) return cfg.message;
+        const result = await gitlabApi(`projects/${repo}/issues/${issue}`, cfg.config, {
+          method: 'PUT',
+          body: { add_labels: names.join(',') },
         });
         if (!result.ok) return `Error applying labels: ${result.error}`;
       }

@@ -3,7 +3,7 @@
 
 import { tool } from '@opencode-ai/plugin';
 import { runGh, resolveRepo } from '../lib/gh-utils';
-import { getGitLabConfig, getGitLabProjectId, gitlabApi } from '../lib/gitlab-utils';
+import { getGitLabConfig, getGitLabProjectId, gitlabApi, gitlabVars } from '../lib/gitlab-utils';
 import { forgejoApi, forgejoVars, getForgejoConfig, getForgejoRepo } from '../lib/forgejo-utils';
 import {
   BACKENDS,
@@ -140,8 +140,8 @@ async function fetchGitLabIssues(
   query: IssueQuery,
   cwd: string
 ): Promise<CommonIssue[] | string> {
-  const cfg = getGitLabConfig();
-  if (!cfg) return 'GitLab not configured (GITLAB_TOKEN not set)';
+  const cfg = getGitLabConfig(cwd);
+  if (!cfg.ok) return cfg.message;
 
   const projectId = await getGitLabProjectId(cwd);
   if (!projectId) return 'Could not determine GitLab project ID.';
@@ -154,7 +154,7 @@ async function fetchGitLabIssues(
   if (query.assignee) params.set('assignee_username', query.assignee);
   if (query.search) params.set('search', query.search);
 
-  const result = await gitlabApi(`projects/${projectId}/issues?${params.toString()}`);
+  const result = await gitlabApi(`projects/${projectId}/issues?${params.toString()}`, cfg.config);
   if (!result.ok) return `Failed to list issues: ${result.error}`;
 
   return normalizeIssues('gitlab', result.data);
@@ -242,7 +242,7 @@ export const issueListTool = tool({
       const remoteUrl = await getRemoteUrl(cwd);
       const backend = await resolveBackendWithSelfHosted(
         remoteUrl,
-        { ...process.env, ...forgejoVars() },
+        { ...process.env, ...forgejoVars(), ...gitlabVars() },
         override
       );
       if (!backend) {

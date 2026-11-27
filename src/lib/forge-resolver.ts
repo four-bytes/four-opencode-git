@@ -9,20 +9,10 @@ import {
   isForgejoHost,
   remoteHostname,
 } from './forgejo-utils';
-import { getGitLabProjectId } from './gitlab-utils';
+import { getGitLabProjectId, gitlabVars, isGitLabHost } from './gitlab-utils';
 
 export const BACKENDS = ['github', 'gitlab', 'forgejo'] as const;
 export type Backend = (typeof BACKENDS)[number];
-
-function toHostname(value: string | null | undefined): string | null {
-  if (!value) return null;
-  const withScheme = value.includes('://') ? value : `https://${value}`;
-  try {
-    return new URL(withScheme).hostname.toLowerCase();
-  } catch {
-    return null;
-  }
-}
 
 export function detectBackend(
   remoteUrl: string | null,
@@ -31,10 +21,7 @@ export function detectBackend(
   const host = remoteHostname(remoteUrl);
   if (host && (host === 'github.com' || host.endsWith('.github.com'))) return 'github';
   if (isForgejoHost(remoteUrl, env)) return 'forgejo';
-  const gitlabHost = toHostname(env.GITLAB_HOST);
-  if (env.GITLAB_TOKEN || (gitlabHost && host && gitlabHost === host) || host === 'gitlab.com') {
-    return 'gitlab';
-  }
+  if (host === 'gitlab.com' || isGitLabHost(remoteUrl, env)) return 'gitlab';
   return null;
 }
 
@@ -141,7 +128,7 @@ export async function resolveForgeContext(
   const remoteUrl = await getRemoteUrl(cwd);
   const backend = await resolveBackendWithSelfHosted(
     remoteUrl,
-    { ...process.env, ...forgejoVars() },
+    { ...process.env, ...forgejoVars(), ...gitlabVars() },
     opts.backend
   );
   if (!backend) return { ok: false, message: noBackendMessage(remoteUrl) };

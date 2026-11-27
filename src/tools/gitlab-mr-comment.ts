@@ -2,7 +2,7 @@
 // Copyright (c) 2025-2026 Four Bytes
 
 import { tool } from '@opencode-ai/plugin';
-import { getGitLabProjectId, gitlabApi } from '../lib/gitlab-utils';
+import { getGitLabConfig, getGitLabProjectId, gitlabApi } from '../lib/gitlab-utils';
 import { logDebugEvent } from '../lib/debug-logger';
 
 export const gitlabMrCommentTool = tool({
@@ -22,10 +22,13 @@ export const gitlabMrCommentTool = tool({
       const projectId = await getGitLabProjectId(ctx.directory);
       if (!projectId) return 'Could not determine GitLab project ID.';
 
+      const cfg = getGitLabConfig(ctx.directory);
+      if (!cfg.ok) return cfg.message;
+
       const result = await gitlabApi(
         `projects/${projectId}/merge_requests/${mrIid}/notes`,
-        'POST',
-        { body }
+        cfg.config,
+        { method: 'POST', body: { body } }
       );
 
       if (!result.ok) {
