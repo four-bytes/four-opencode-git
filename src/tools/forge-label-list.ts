@@ -4,6 +4,7 @@
 import { tool } from '@opencode-ai/plugin';
 import { resolveForgeContext, type Backend } from '../lib/forge-resolver';
 import { getForgejoConfig } from '../lib/forgejo-utils';
+import { getGitLabConfig } from '../lib/gitlab-utils';
 import {
   formatLabelList,
   listForgejoLabels,
@@ -46,7 +47,9 @@ export const forgeLabelListTool = tool({
         if (!listed.ok) return `Error listing labels: ${listed.error}`;
         labels = listed.labels;
       } else {
-        const listed = await listGitlabLabels(repo!);
+        const cfg = getGitLabConfig(cwd);
+        if (!cfg.ok) return cfg.message;
+        const listed = await listGitlabLabels(repo!, cfg.config);
         if (!listed.ok) return `Error listing labels: ${listed.error}`;
         labels = listed.labels;
       }

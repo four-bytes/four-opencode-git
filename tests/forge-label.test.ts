@@ -1,26 +1,42 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2025-2026 Four Bytes
 
-import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'bun:test';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { forgeLabelCreateTool } from '../src/tools/forge-label-create';
 import { forgeLabelApplyTool } from '../src/tools/forge-label-apply';
 import { forgeLabelRemoveTool } from '../src/tools/forge-label-remove';
 
 const ctx = { directory: '/tmp' };
 
-const GITLAB_KEYS = ['GITLAB_TOKEN', 'GITLAB_HOST'] as const;
+/** Keep the tool tests hermetic: never read the developer's real secrets.env. */
+let previousXdg: string | undefined;
+beforeAll(() => {
+  previousXdg = process.env.XDG_CONFIG_HOME;
+  process.env.XDG_CONFIG_HOME = mkdtempSync(join(tmpdir(), 'forge-label-xdg-'));
+});
+afterAll(() => {
+  if (previousXdg === undefined) delete process.env.XDG_CONFIG_HOME;
+  else process.env.XDG_CONFIG_HOME = previousXdg;
+});
+
 let saved: Record<string, string | undefined> = {};
+let savedKeys: string[] = [];
 
 beforeEach(() => {
   saved = {};
-  for (const key of GITLAB_KEYS) {
+  savedKeys = Object.keys(process.env).filter((key) => key.startsWith('GITLAB_'));
+  for (const key of savedKeys) {
     saved[key] = process.env[key];
     delete process.env[key];
   }
 });
 
 afterEach(() => {
-  for (const [key, value] of Object.entries(saved)) {
+  for (const key of savedKeys) {
+    const value = saved[key];
     if (value === undefined) delete process.env[key];
     else process.env[key] = value;
   }

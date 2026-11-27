@@ -8,7 +8,7 @@
 
 import type { Backend } from './forge-resolver';
 import { runGh } from './gh-utils';
-import { gitlabApi } from './gitlab-utils';
+import { getGitLabConfig, gitlabApi, type GitLabConfig } from './gitlab-utils';
 import {
   forgejoApiAll,
   getForgejoConfig,
@@ -101,8 +101,11 @@ export async function listForgejoLabels(
   return { ok: true, labels: Array.isArray(data) ? data.map(normalizeLabel) : [] };
 }
 
-export async function listGitlabLabels(projectId: string): Promise<LabelListResult> {
-  const result = await gitlabApi(`projects/${projectId}/labels?per_page=100`);
+export async function listGitlabLabels(
+  projectId: string,
+  config: GitLabConfig
+): Promise<LabelListResult> {
+  const result = await gitlabApi(`projects/${projectId}/labels?per_page=100`, config);
   if (!result.ok) return { ok: false, labels: [], error: result.error };
   const data = result.data;
   return { ok: true, labels: Array.isArray(data) ? data.map(normalizeLabel) : [] };
@@ -150,7 +153,10 @@ export async function prepareLabels(
   }
 
   if (backend === 'gitlab') {
-    const listed = await listGitlabLabels(repo);
+    const cfg = getGitLabConfig(cwd);
+    if (!cfg.ok) return { ok: false, message: cfg.message, names };
+
+    const listed = await listGitlabLabels(repo, cfg.config);
     if (!listed.ok) return { ok: false, message: `Error reading labels: ${listed.error}`, names };
     const unknown = findUnknownLabels(names, listed.labels.map((l) => l.name));
     if (unknown.length > 0) {

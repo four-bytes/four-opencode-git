@@ -1,12 +1,25 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2025-2026 Four Bytes
 
-import { describe, it, expect } from 'bun:test';
+import { afterAll, beforeAll, describe, it, expect } from 'bun:test';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { forgePrMergeTool } from '../src/tools/forge-pr-merge';
 import { forgePrReviewTool } from '../src/tools/forge-pr-review';
 import { forgePrCommentsTool } from '../src/tools/forge-pr-comments';
 
 const ctx = { directory: '/tmp' };
+
+let previousXdg: string | undefined;
+beforeAll(() => {
+  previousXdg = process.env.XDG_CONFIG_HOME;
+  process.env.XDG_CONFIG_HOME = mkdtempSync(join(tmpdir(), 'forge-pr-merge-xdg-'));
+});
+afterAll(() => {
+  if (previousXdg === undefined) delete process.env.XDG_CONFIG_HOME;
+  else process.env.XDG_CONFIG_HOME = previousXdg;
+});
 
 describe('forge_pr_merge', () => {
   it('rejects rebase-merge for GitHub with a clear message', async () => {

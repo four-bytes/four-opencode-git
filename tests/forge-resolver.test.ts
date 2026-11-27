@@ -1,11 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2025-2026 Four Bytes
 
-import { describe, it, expect } from 'bun:test';
+import { afterAll, beforeAll, describe, it, expect } from 'bun:test';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { detectBackend, resolveForgeContext } from '../src/lib/forge-resolver';
+
+let previousXdg: string | undefined;
+beforeAll(() => {
+  previousXdg = process.env.XDG_CONFIG_HOME;
+  process.env.XDG_CONFIG_HOME = mkdtempSync(join(tmpdir(), 'forge-resolver-xdg-'));
+});
+afterAll(() => {
+  if (previousXdg === undefined) delete process.env.XDG_CONFIG_HOME;
+  else process.env.XDG_CONFIG_HOME = previousXdg;
+});
 
 /** A throwaway directory that is not a git repository. */
 function tempDir(): string {
@@ -54,7 +64,7 @@ describe('resolveForgeContext', () => {
   it('reports no backend for a directory that is not a git repo', async () => {
     const saved: Record<string, string | undefined> = {};
     const keys = Object.keys(process.env).filter(
-      (key) => key === 'GITLAB_TOKEN' || key === 'GITLAB_HOST' || key.startsWith('FORGEJO_HOST')
+      (key) => key.startsWith('GITLAB_') || key.startsWith('FORGEJO_')
     );
     for (const key of keys) {
       saved[key] = process.env[key];
@@ -66,7 +76,10 @@ describe('resolveForgeContext', () => {
       if (resolved.ok) return;
       expect(resolved.message).toContain('No issue backend');
     } finally {
-      for (const key of keys) process.env[key] = saved[key];
+      for (const [key, value] of Object.entries(saved)) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
     }
   });
 });

@@ -2,7 +2,7 @@
 // Copyright (c) 2025-2026 Four Bytes
 
 import { tool } from '@opencode-ai/plugin';
-import { getGitLabProjectId, gitlabApi } from '../lib/gitlab-utils';
+import { getGitLabConfig, getGitLabProjectId, gitlabApi } from '../lib/gitlab-utils';
 import { logDebugEvent } from '../lib/debug-logger';
 
 // ────────────────────────────────────────────────────────────────
@@ -15,7 +15,10 @@ export async function getGitlabMrStatus(
   iid: number,
   cwd: string
 ): Promise<string> {
-  const result = await gitlabApi(`projects/${projectId}/merge_requests/${iid}`);
+  const cfg = getGitLabConfig(cwd);
+  if (!cfg.ok) return cfg.message;
+
+  const result = await gitlabApi(`projects/${projectId}/merge_requests/${iid}`, cfg.config);
 
   if (!result.ok) return `Failed to get MR: ${result.error}`;
 
@@ -59,8 +62,12 @@ export const gitlabMrStatusTool = tool({
         return await getGitlabMrStatus(projectId, mrIid, ctx.directory);
       } else {
         // List open MRs
+        const cfg = getGitLabConfig(ctx.directory);
+        if (!cfg.ok) return cfg.message;
+
         const result = await gitlabApi(
-          `projects/${projectId}/merge_requests?state=opened&per_page=10`
+          `projects/${projectId}/merge_requests?state=opened&per_page=10`,
+          cfg.config
         );
 
         if (!result.ok) return `Failed to list MRs: ${result.error}`;

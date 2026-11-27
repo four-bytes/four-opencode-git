@@ -1,11 +1,24 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2025-2026 Four Bytes
 
-import { describe, expect, it } from 'bun:test';
+import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { forgeReactionAddTool } from '../src/tools/forge-reaction-add';
 import { forgeReactionListTool, formatReactionList } from '../src/tools/forge-reaction-list';
 
 const ctx = { directory: '/tmp' };
+
+let previousXdg: string | undefined;
+beforeAll(() => {
+  previousXdg = process.env.XDG_CONFIG_HOME;
+  process.env.XDG_CONFIG_HOME = mkdtempSync(join(tmpdir(), 'forge-reaction-xdg-'));
+});
+afterAll(() => {
+  if (previousXdg === undefined) delete process.env.XDG_CONFIG_HOME;
+  else process.env.XDG_CONFIG_HOME = previousXdg;
+});
 
 describe('forge_reaction_add', () => {
   it('refuses GitLab with a clear not-supported message', async () => {

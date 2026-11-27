@@ -60,16 +60,24 @@ describe('detectBackend', () => {
     expect(detectBackend('git@github.com:four-bytes/repo.git', {})).toBe('github');
   });
 
-  it('detects GitLab from gitlab.com, GITLAB_HOST, or GITLAB_TOKEN', () => {
+  it('detects GitLab from gitlab.com or a configured GITLAB_HOST[_NAME]', () => {
     expect(detectBackend('https://gitlab.com/grp/proj.git', {})).toBe('gitlab');
     expect(
       detectBackend('https://gitlab.example.com/grp/proj.git', {
         GITLAB_HOST: 'https://gitlab.example.com',
       })
     ).toBe('gitlab');
-    expect(detectBackend('https://code.example.org/grp/proj.git', { GITLAB_TOKEN: 'x' })).toBe(
-      'gitlab'
-    );
+    expect(
+      detectBackend('https://gitlab.example.com/grp/proj.git', {
+        GITLAB_HOST_WORK: 'gitlab.example.com',
+      })
+    ).toBe('gitlab');
+  });
+
+  it('never selects GitLab from a bare token on an arbitrary host', () => {
+    expect(detectBackend('https://code.example.org/grp/proj.git', { GITLAB_TOKEN: 'x' })).toBeNull();
+    // gitlab.com is the documented default for a bare token.
+    expect(detectBackend('https://gitlab.com/grp/proj.git', { GITLAB_TOKEN: 'x' })).toBe('gitlab');
   });
 
   it('detects Forgejo from a configured host, labelled or not', () => {
@@ -113,19 +121,20 @@ describe('detectBackend', () => {
     ).toBe('github');
   });
 
-  it('prefers a configured Forgejo host over GITLAB_TOKEN', () => {
+  it('prefers a configured Forgejo host over a GitLab token', () => {
     expect(
       detectBackend('https://code.example.org/o/r.git', {
         FORGEJO_HOST_CODE: 'code.example.org',
         GITLAB_TOKEN: 'y',
       })
     ).toBe('forgejo');
+    // A bare GITLAB_TOKEN no longer claims an arbitrary self-hosted host.
     expect(
       detectBackend('https://code.example.org/o/r.git', {
         FORGEJO_TOKEN: 'x',
         GITLAB_TOKEN: 'y',
       })
-    ).toBe('gitlab');
+    ).toBeNull();
   });
 });
 

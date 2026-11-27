@@ -68,16 +68,18 @@ returns `No issue backend for <host>.` as a plain string.
 ## Architecture
 - Entry: `src/four-opencode-git.ts` — registers all 34 tools
 - Tools: `src/tools/` — one file per tool; analysis tools export execute fns used by git_analyze dispatcher
-- Lib: `src/lib/` — git-utils.ts, gh-utils.ts, gh-reviews.ts, gitlab-utils.ts, forgejo-utils.ts, forgejo-reviews.ts, secrets.ts, plugin-log.ts, debug-logger.ts, diff-parse.ts
+- Lib: `src/lib/` — git-utils.ts, gh-utils.ts, gh-reviews.ts, gitlab-utils.ts, forgejo-utils.ts, forge-hosts.ts, forgejo-reviews.ts, secrets.ts, plugin-log.ts, debug-logger.ts, diff-parse.ts
 - Tests: `tests/` — bun-native
 
 ## Dependencies
 - `@opencode-ai/plugin` 1.15.13 (exact pin)
 - Bun runtime, ESM modules
-- `gh` CLI for GitHub tools, `glab` for GitLab tools
-- Forgejo REST API — no `fj` CLI dependency. Tokens per host in `~/.config/four-git/secrets.env`
-  (`FORGEJO_HOST_<NAME>` + `FORGEJO_TOKEN_<NAME>`), matched against the origin hostname; never
-  written into `process.env`, never sent to another host (`src/lib/secrets.ts`, `forgejo-utils.ts`)
+- `gh` CLI for GitHub tools
+- Forgejo and GitLab REST APIs — no `fj` / `glab` CLI dependency. Tokens per host in
+  `~/.config/four-git/secrets.env` (`FORGEJO_HOST_<NAME>` + `FORGEJO_TOKEN_<NAME>`,
+  `GITLAB_HOST_<NAME>` + `GITLAB_TOKEN_<NAME>`), matched against the origin hostname; never
+  written into `process.env`, never sent to another host (`src/lib/secrets.ts`,
+  `src/lib/forge-hosts.ts`, `src/lib/forgejo-utils.ts`, `src/lib/gitlab-utils.ts`)
 - Gitea = Forgejo-compatible API (same `FORGEJO_*` host/token vars); `FOUR_GIT_AUTO_DETECT_SELF_HOSTED=1`
   opts into bounded read-only self-hosted detection on unknown hosts (default off)
 
