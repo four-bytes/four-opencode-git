@@ -1,6 +1,6 @@
 {
   "name": "@four-bytes/four-opencode-git",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Git analysis + GitHub/GitLab ops tools for opencode agents",
   "type": "module",
   "license": "Apache-2.0",
@@ -14,7 +14,8 @@
     "lint:ts": "tsc --noEmit"
   },
   "dependencies": {
-    "@opencode-ai/plugin": "1.15.13"
+    "@opencode-ai/plugin": "1.15.13",
+    "@four-bytes/opencode-plugin-lib": "github:four-bytes/four-opencode-plugin-lib#v0.9.0"
   },
   "devDependencies": {
     "@types/bun": "~1.3.14",
