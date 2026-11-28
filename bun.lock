@@ -5,6 +5,7 @@
     "": {
       "name": "@four-bytes/four-opencode-git",
       "dependencies": {
+        "@four-bytes/opencode-plugin-lib": "github:four-bytes/four-opencode-plugin-lib#v0.9.0",
         "@opencode-ai/plugin": "1.15.13",
       },
       "devDependencies": {
@@ -14,6 +15,8 @@
     },
   },
   "packages": {
+    "@four-bytes/opencode-plugin-lib": ["@four-bytes/opencode-plugin-lib@github:four-bytes/four-opencode-plugin-lib#650203e", { "peerDependencies": { "@opencode-ai/plugin": ">=1.16.0", "@opentui/core": "^0.4.1", "@opentui/solid": "^0.4.5", "solid-js": "^1.9.13" }, "optionalPeers": ["@opentui/core", "@opentui/solid", "solid-js"] }, "four-bytes-four-opencode-plugin-lib-650203e", "sha512-La2vJtcLQY99HurOQPKgYQ8JogxZ0S78849uwvMOI7xjq1qaQzKwmmxGu6NQqasxks51thuNQG5lqvoyItSBLA=="],
+
     "@msgpackr-extract/msgpackr-extract-darwin-arm64": ["@msgpackr-extract/msgpackr-extract-darwin-arm64@3.0.4", "", { "os": "darwin", "cpu": "arm64" }, "sha512-LCkGo6JDfaBhgST7UpPWgNgLINpcpabaHfyz5OBx75nUYxBsaEPxjnyNjWpeb/xBup/682QnBfRBy2/LvPutZQ=="],
 
     "@msgpackr-extract/msgpackr-extract-darwin-x64": ["@msgpackr-extract/msgpackr-extract-darwin-x64@3.0.4", "", { "os": "darwin", "cpu": "x64" }, "sha512-zExlW9zUJKZH/tOtVMttwjKa4Xm/3KcNjnE3dPN92uCktwavMxpgCA3MoJK/DOnTWsQgo224OaST27/mPNAf+w=="],

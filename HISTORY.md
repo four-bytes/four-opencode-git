@@ -1,5 +1,10 @@
 # HISTORY — four-opencode-git
 
+## 0.8.1 — shared JSONL logger (#86)
+- `src/lib/debug-logger.ts` is now a thin alias to `createJsonlLogger` from `@four-bytes/opencode-plugin-lib`.
+- Removed the orphaned duplicate `src/debug-logger.ts`.
+- Debug log schema adopts the lib shape: `ts` is epoch milliseconds (was ISO string) and the event name key is `type` (was `event`). No source or test parses these logs.
+
 ## 0.8.0 — forge_issue_close + legacy profile (#72, part of #55)
 - New `forge_issue_close` (GitHub/Forgejo; GitLab → "not supported").
 - Provider-specific tools (`gh_*`/`forgejo_*`/`gitlab_*`) are now gated behind `FOUR_GIT_LEGACY_TOOLS=1` (default off); `git_*`, `issue_list`, and `forge_*` are always on.
